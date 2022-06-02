@@ -97,15 +97,15 @@ fn resolve_constants(raw_pool: Vec<RawConstantEntry>) -> Vec<ConstantEntry>{
             RawConstantEntry::Double(d) => ConstantEntry::Double(d),
 
             RawConstantEntry::Class(idx) if let RawConstantEntry::Utf8(s) = raw_pool[idx as usize]
-                => ConstantEntry::Class(&s),
+                => ConstantEntry::Class(box s),
             RawConstantEntry::StringConst(idx) if let RawConstantEntry::Utf8(s) = raw_pool[idx as usize]
-                => ConstantEntry::StringConst(&s),
+                => ConstantEntry::StringConst(box s),
             RawConstantEntry::MethodType(idx) if let RawConstantEntry::Utf8(s) = raw_pool[idx as usize]
-                => ConstantEntry::MethodType(&s),
+                => ConstantEntry::MethodType(box s),
             RawConstantEntry::Module(idx) if let RawConstantEntry::Utf8(s) = raw_pool[idx as usize]
-                => ConstantEntry::Module(&s),
+                => ConstantEntry::Module(box s),
             RawConstantEntry::Package(idx) if let RawConstantEntry::Utf8(s) = raw_pool[idx as usize]
-                => ConstantEntry::Package(&s),
+                => ConstantEntry::Package(box s),
 
             _ => panic!("bad conversion from {:?}", con)
         });
