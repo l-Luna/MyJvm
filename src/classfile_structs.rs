@@ -42,6 +42,38 @@ pub enum RawConstantEntry {
     Package(u16)    // 20, index to utf8 name, only in module-info
 }
 
+// Ordered by tag number, uses actual useful values
+#[derive(Debug)]
+pub enum ConstantEntry{
+    Utf8(String),
+    Integer(i32),
+    Float(f32),
+    Long(i64),
+    Double(f64),
+
+    Class(String),
+    StringConst(String),
+    MemberRef(MemberRef),
+    NameAndType(NameAndType),
+    MethodHandle(DynamicReferenceType, MemberRef),
+    MethodType(String),
+    Dynamic(NameAndType, NameAndType), // is this correct?
+    InvokeDynamic(NameAndType, NameAndType),
+
+    Module(String),
+    Package(String)
+}
+
+pub enum MemberType{
+    Field, Method, InterfaceMethod
+}
+pub enum DynamicReferenceType{
+    GetField, GetStatic, PutField, PutStatic, InvokeVirtual, NewInvokeSpecial, InvokeStatic, InvokeSpecial
+}
+
+pub struct NameAndType{ name: String, descriptor: String }
+pub struct MemberRef{ mtype: MemberType, name: String, ntype: NameAndType }
+
 #[derive(Debug)]
 pub struct Attribute{
 
