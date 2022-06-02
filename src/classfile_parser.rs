@@ -1,5 +1,4 @@
-use classfile_structs::{Classfile, RawConstantEntry};
-use classfile_structs::RawConstantEntry::{Class, Double, Dynamic, Float, Integer, Long, MemberRef, MethodHandle, MethodType, Module, NameAndType, Package, StringConst, Utf8};
+use classfile_structs::{Classfile, ConstantEntry, RawConstantEntry};
 
 pub fn parse(file: &mut Vec<u8>) -> Result<Classfile, &str>{
     if !expect_int(file, 0xCAFEBABE){
@@ -36,20 +35,20 @@ fn parse_constants(file: &mut Vec<u8>) -> Option<Vec<RawConstantEntry>>{
         dbg!(&pool);
         let tag = next_byte(file)?;
         pool.push(match tag{
-            1 => Utf8(parse_modified_utf8(file)?),
-            3 => Integer(next_int(file)?),
-            4 => Float(next_float(file)?),
-            5 => Long(next_long(file)?),
-            6 => Double(next_double(file)?),
-            7 => Class(next_short(file)?),
-            8 => StringConst(next_short(file)?),
-            9 | 10 | 11 => MemberRef(tag, next_short(file)?, next_short(file)?),
-            12 => NameAndType(next_short(file)?, next_short(file)?),
-            15 => MethodHandle(next_byte(file)?, next_short(file)?),
-            16 => MethodType(next_short(file)?),
-            17 | 18 => Dynamic(tag, next_short(file)?, next_short(file)?),
-            19 => Module(next_short(file)?),
-            20 => Package(next_short(file)?),
+            1 => RawConstantEntry::Utf8(parse_modified_utf8(file)?),
+            3 => RawConstantEntry::Integer(next_int(file)?),
+            4 => RawConstantEntry::Float(next_float(file)?),
+            5 => RawConstantEntry::Long(next_long(file)?),
+            6 => RawConstantEntry::Double(next_double(file)?),
+            7 => RawConstantEntry::Class(next_short(file)?),
+            8 => RawConstantEntry::StringConst(next_short(file)?),
+            9 | 10 | 11 => RawConstantEntry::MemberRef(tag, next_short(file)?, next_short(file)?),
+            12 => RawConstantEntry::NameAndType(next_short(file)?, next_short(file)?),
+            15 => RawConstantEntry::MethodHandle(next_byte(file)?, next_short(file)?),
+            16 => RawConstantEntry::MethodType(next_short(file)?),
+            17 | 18 => RawConstantEntry::Dynamic(tag, next_short(file)?, next_short(file)?),
+            19 => RawConstantEntry::Module(next_short(file)?),
+            20 => RawConstantEntry::Package(next_short(file)?),
             _ => {
                 // uhhhhhhhhh
                 //panic!("Invalid tag: {}", tag)
@@ -85,6 +84,33 @@ fn parse_modified_utf8(file: &mut Vec<u8>) -> Option<String>{
         }
     }
     return Some(current);
+}
+
+fn resolve_constants(raw_pool: Vec<RawConstantEntry>) -> Vec<ConstantEntry>{
+    let mut ret: Vec<ConstantEntry> = Vec::with_capacity(raw_pool.len());
+    for con in raw_pool {
+        ret.push(match con {
+            RawConstantEntry::Utf8(s) => ConstantEntry::Utf8(box s),
+            RawConstantEntry::Integer(i) => ConstantEntry::Integer(i),
+            RawConstantEntry::Float(f) => ConstantEntry::Float(f),
+            RawConstantEntry::Long(l) => ConstantEntry::Long(l),
+            RawConstantEntry::Double(d) => ConstantEntry::Double(d),
+
+            RawConstantEntry::Class(idx) if let RawConstantEntry::Utf8(s) = raw_pool[idx as usize]
+                => ConstantEntry::Class(&s),
+            RawConstantEntry::StringConst(idx) if let RawConstantEntry::Utf8(s) = raw_pool[idx as usize]
+                => ConstantEntry::StringConst(&s),
+            RawConstantEntry::MethodType(idx) if let RawConstantEntry::Utf8(s) = raw_pool[idx as usize]
+                => ConstantEntry::MethodType(&s),
+            RawConstantEntry::Module(idx) if let RawConstantEntry::Utf8(s) = raw_pool[idx as usize]
+                => ConstantEntry::Module(&s),
+            RawConstantEntry::Package(idx) if let RawConstantEntry::Utf8(s) = raw_pool[idx as usize]
+                => ConstantEntry::Package(&s),
+
+            _ => panic!("bad conversion from {:?}", con)
+        });
+    }
+    return ret;
 }
 
 

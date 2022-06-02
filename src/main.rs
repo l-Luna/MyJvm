@@ -1,10 +1,10 @@
 #![feature(absolute_path)]
 #![feature(let_else)]
+#![feature(if_let_guard)]
 
 use std::fs::File;
 use std::io::Read;
 use std::{io, path};
-use classfile_structs::Classfile;
 
 mod classfile_structs;
 mod classfile_parser;

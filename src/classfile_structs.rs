@@ -24,8 +24,8 @@ pub enum RawConstantEntry {
     Utf8(String),   // 1, u16 length + u8[len] modified utf8
     Integer(i32),   // 3
     Float(f32),     // 4
-    Long(i64),      // 5, uses two entries
-    Double(f64),    // 6, uses two entries, specially handles NaNs
+    Long(i64),      // 5, ***uses two entries***
+    Double(f64),    // 6, ***uses two entries***, specially handles NaNs
 
     Class(u16),     // 7, index to utf8 name
     StringConst(u16),    // 8, index to utf8 content
@@ -45,34 +45,40 @@ pub enum RawConstantEntry {
 // Ordered by tag number, uses actual useful values
 #[derive(Debug)]
 pub enum ConstantEntry{
-    Utf8(String),
+    Utf8(Box<str>),
     Integer(i32),
     Float(f32),
     Long(i64),
     Double(f64),
 
-    Class(String),
-    StringConst(String),
+    Class(Box<str>),
+    StringConst(Box<str>),
     MemberRef(MemberRef),
     NameAndType(NameAndType),
     MethodHandle(DynamicReferenceType, MemberRef),
-    MethodType(String),
-    Dynamic(NameAndType, NameAndType), // is this correct?
-    InvokeDynamic(NameAndType, NameAndType),
+    MethodType(Box<str>),
+    Dynamic(Dynamic),
+    InvokeDynamic(Dynamic),
 
-    Module(String),
-    Package(String)
+    Module(Box<str>),
+    Package(Box<str>)
 }
 
-pub enum MemberType{
+#[derive(Debug)]
+pub enum MemberKind {
     Field, Method, InterfaceMethod
 }
+#[derive(Debug)]
 pub enum DynamicReferenceType{
     GetField, GetStatic, PutField, PutStatic, InvokeVirtual, NewInvokeSpecial, InvokeStatic, InvokeSpecial
 }
 
+#[derive(Debug)]
 pub struct NameAndType{ name: String, descriptor: String }
-pub struct MemberRef{ mtype: MemberType, name: String, ntype: NameAndType }
+#[derive(Debug)]
+pub struct MemberRef{ kind: MemberKind, name: String, ntype: NameAndType }
+#[derive(Debug)]
+pub struct Dynamic{ bootstrap: NameAndType, value: NameAndType }
 
 #[derive(Debug)]
 pub struct Attribute{
