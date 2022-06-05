@@ -4,7 +4,7 @@ pub struct Classfile{
     pub major_ver: u16,
     pub minor_ver: u16,
 
-    pub constants: Vec<RawConstantEntry>,
+    pub constants: Vec<ConstantEntry>,
 
     pub flags: u16,
 
@@ -27,6 +27,8 @@ pub enum RawConstantEntry {
     Long(i64),      // 5, ***uses two entries***
     Double(f64),    // 6, ***uses two entries***, specially handles NaNs
 
+    LongSecond,
+
     Class(u16),     // 7, index to utf8 name
     StringConst(u16),    // 8, index to utf8 content
 
@@ -45,23 +47,25 @@ pub enum RawConstantEntry {
 // Ordered by tag number, uses actual useful values
 #[derive(Debug)]
 pub enum ConstantEntry{
-    Utf8(Box<str>),
+    Utf8(String),
     Integer(i32),
     Float(f32),
     Long(i64),
     Double(f64),
 
-    Class(Box<str>),
-    StringConst(Box<str>),
+    LongSecond,
+
+    Class(String),
+    StringConst(String),
     MemberRef(MemberRef),
     NameAndType(NameAndType),
     MethodHandle(DynamicReferenceType, MemberRef),
-    MethodType(Box<str>),
+    MethodType(String),
     Dynamic(Dynamic),
     InvokeDynamic(Dynamic),
 
-    Module(Box<str>),
-    Package(Box<str>)
+    Module(String),
+    Package(String)
 }
 
 #[derive(Debug)]

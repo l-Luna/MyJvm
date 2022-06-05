@@ -8,7 +8,8 @@ pub fn parse(file: &mut Vec<u8>) -> Result<Classfile, &str>{
     let Some(minor_ver) = next_short(file) else { return Err("Missing minor version"); };
     let Some(major_ver) = next_short(file) else { return Err("Missing major version"); };
 
-    let Some(constants) = parse_constants(file) else { return Err("Unable to parse constant pool"); };
+    let Some(raw_constants) = parse_constants(file) else { return Err("Unable to parse constant pool"); };
+    let Some(constants) = resolve_constants(raw_constants) else { return Err("Unable to resolve constant pool"); };
 
     let Some(flags) = next_short(file) else { return Err("Missing access flags"); };
 
@@ -29,33 +30,37 @@ pub fn parse(file: &mut Vec<u8>) -> Result<Classfile, &str>{
 fn parse_constants(file: &mut Vec<u8>) -> Option<Vec<RawConstantEntry>>{
     let mut pool: Vec<RawConstantEntry> = Vec::new();
     let count = next_short(file)?;
-    dbg!(count);
-    for i in 0..(count - 1) {
-        dbg!(i);
-        dbg!(&pool);
+    let mut i = 0;
+    while i < count - 1 {
         let tag = next_byte(file)?;
-        pool.push(match tag{
-            1 => RawConstantEntry::Utf8(parse_modified_utf8(file)?),
-            3 => RawConstantEntry::Integer(next_int(file)?),
-            4 => RawConstantEntry::Float(next_float(file)?),
-            5 => RawConstantEntry::Long(next_long(file)?),
-            6 => RawConstantEntry::Double(next_double(file)?),
-            7 => RawConstantEntry::Class(next_short(file)?),
-            8 => RawConstantEntry::StringConst(next_short(file)?),
-            9 | 10 | 11 => RawConstantEntry::MemberRef(tag, next_short(file)?, next_short(file)?),
-            12 => RawConstantEntry::NameAndType(next_short(file)?, next_short(file)?),
-            15 => RawConstantEntry::MethodHandle(next_byte(file)?, next_short(file)?),
-            16 => RawConstantEntry::MethodType(next_short(file)?),
-            17 | 18 => RawConstantEntry::Dynamic(tag, next_short(file)?, next_short(file)?),
-            19 => RawConstantEntry::Module(next_short(file)?),
-            20 => RawConstantEntry::Package(next_short(file)?),
+        match tag{
+            1 => pool.push(RawConstantEntry::Utf8(parse_modified_utf8(file)?)),
+            3 => pool.push(RawConstantEntry::Integer(next_int(file)?)),
+            4 => pool.push(RawConstantEntry::Float(next_float(file)?)),
+            5 => {
+                i += 1;
+                pool.push(RawConstantEntry::Long(next_long(file)?));
+                pool.push(RawConstantEntry::LongSecond);
+            },
+            6 => {
+                i += 1;
+                pool.push(RawConstantEntry::Double(next_double(file)?));
+                pool.push(RawConstantEntry::LongSecond);
+            },
+            7 => pool.push(RawConstantEntry::Class(next_short(file)?)),
+            8 => pool.push(RawConstantEntry::StringConst(next_short(file)?)),
+            9 | 10 | 11 => pool.push(RawConstantEntry::MemberRef(tag, next_short(file)?, next_short(file)?)),
+            12 => pool.push(RawConstantEntry::NameAndType(next_short(file)?, next_short(file)?)),
+            15 => pool.push(RawConstantEntry::MethodHandle(next_byte(file)?, next_short(file)?)),
+            16 => pool.push(RawConstantEntry::MethodType(next_short(file)?)),
+            17 | 18 => pool.push(RawConstantEntry::Dynamic(tag, next_short(file)?, next_short(file)?)),
+            19 => pool.push(RawConstantEntry::Module(next_short(file)?)),
+            20 => pool.push(RawConstantEntry::Package(next_short(file)?)),
             _ => {
-                // uhhhhhhhhh
-                //panic!("Invalid tag: {}", tag)
-                file.insert(0, tag);
-                return Some(pool);
+                panic!("Invalid tag: {}", tag);
             }
-        });
+        };
+        i += 1;
     }
     return Some(pool);
 }
@@ -86,31 +91,31 @@ fn parse_modified_utf8(file: &mut Vec<u8>) -> Option<String>{
     return Some(current);
 }
 
-fn resolve_constants(raw_pool: Vec<RawConstantEntry>) -> Vec<ConstantEntry>{
+fn resolve_constants(raw_pool: Vec<RawConstantEntry>) -> Option<Vec<ConstantEntry>>{
     let mut ret: Vec<ConstantEntry> = Vec::with_capacity(raw_pool.len());
-    for con in raw_pool {
+    for con in &raw_pool {
         ret.push(match con {
-            RawConstantEntry::Utf8(s) => ConstantEntry::Utf8(box s),
-            RawConstantEntry::Integer(i) => ConstantEntry::Integer(i),
-            RawConstantEntry::Float(f) => ConstantEntry::Float(f),
-            RawConstantEntry::Long(l) => ConstantEntry::Long(l),
-            RawConstantEntry::Double(d) => ConstantEntry::Double(d),
+            RawConstantEntry::Utf8(s) => ConstantEntry::Utf8(s.clone()),
+            RawConstantEntry::Integer(i) => ConstantEntry::Integer(*i),
+            RawConstantEntry::Float(f) => ConstantEntry::Float(*f),
+            RawConstantEntry::Long(l) => ConstantEntry::Long(*l),
+            RawConstantEntry::Double(d) => ConstantEntry::Double(*d),
 
-            RawConstantEntry::Class(idx) if let RawConstantEntry::Utf8(s) = raw_pool[idx as usize]
-                => ConstantEntry::Class(box s),
-            RawConstantEntry::StringConst(idx) if let RawConstantEntry::Utf8(s) = raw_pool[idx as usize]
-                => ConstantEntry::StringConst(box s),
-            RawConstantEntry::MethodType(idx) if let RawConstantEntry::Utf8(s) = raw_pool[idx as usize]
-                => ConstantEntry::MethodType(box s),
-            RawConstantEntry::Module(idx) if let RawConstantEntry::Utf8(s) = raw_pool[idx as usize]
-                => ConstantEntry::Module(box s),
-            RawConstantEntry::Package(idx) if let RawConstantEntry::Utf8(s) = raw_pool[idx as usize]
-                => ConstantEntry::Package(box s),
+            RawConstantEntry::Class(idx) if let RawConstantEntry::Utf8(s) = &raw_pool[*idx as usize]
+                => ConstantEntry::Class(s.clone()),
+            RawConstantEntry::StringConst(idx) if let RawConstantEntry::Utf8(s) = &raw_pool[*idx as usize]
+                => ConstantEntry::StringConst(s.clone()),
+            RawConstantEntry::MethodType(idx) if let RawConstantEntry::Utf8(s) = &raw_pool[*idx as usize]
+                => ConstantEntry::MethodType(s.clone()),
+            RawConstantEntry::Module(idx) if let RawConstantEntry::Utf8(s) = &raw_pool[*idx as usize]
+                => ConstantEntry::Module(s.clone()),
+            RawConstantEntry::Package(idx) if let RawConstantEntry::Utf8(s) = &raw_pool[*idx as usize]
+                => ConstantEntry::Package(s.clone()),
 
             _ => panic!("bad conversion from {:?}", con)
         });
     }
-    return ret;
+    return Some(ret);
 }
 
 

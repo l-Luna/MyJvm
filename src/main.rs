@@ -19,7 +19,6 @@ fn main() {
 
     let path = path::Path::new(&buf);
     let path = path::absolute(path).expect("Could not make path absolute");
-    dbg!(&path);
     let mut classfile = File::open(path).expect("Expected a classfile to exist!");
 
     let mut class: Vec<u8> = Vec::new();
