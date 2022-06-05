@@ -3,6 +3,8 @@
 #![feature(if_let_guard)]
 #![feature(box_syntax)]
 
+extern crate core;
+
 use std::fs::File;
 use std::io::Read;
 use std::{io, path};

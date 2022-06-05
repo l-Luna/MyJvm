@@ -1,4 +1,4 @@
-use classfile_structs::{Classfile, ConstantEntry, RawConstantEntry};
+use classfile_structs::{Classfile, ConstantEntry, MemberKind, MemberRef, NameAndType, RawConstantEntry};
 
 pub fn parse(file: &mut Vec<u8>) -> Result<Classfile, &str>{
     if !expect_int(file, 0xCAFEBABE){
@@ -95,27 +95,76 @@ fn resolve_constants(raw_pool: Vec<RawConstantEntry>) -> Option<Vec<ConstantEntr
     let mut ret: Vec<ConstantEntry> = Vec::with_capacity(raw_pool.len());
     for con in &raw_pool {
         ret.push(match con {
+            RawConstantEntry::LongSecond => ConstantEntry::LongSecond,
+
             RawConstantEntry::Utf8(s) => ConstantEntry::Utf8(s.clone()),
             RawConstantEntry::Integer(i) => ConstantEntry::Integer(*i),
             RawConstantEntry::Float(f) => ConstantEntry::Float(*f),
             RawConstantEntry::Long(l) => ConstantEntry::Long(*l),
             RawConstantEntry::Double(d) => ConstantEntry::Double(*d),
 
-            RawConstantEntry::Class(idx) if let RawConstantEntry::Utf8(s) = &raw_pool[*idx as usize]
+            RawConstantEntry::Class(idx) if let RawConstantEntry::Utf8(s) = &raw_pool[*idx as usize - 1]
                 => ConstantEntry::Class(s.clone()),
-            RawConstantEntry::StringConst(idx) if let RawConstantEntry::Utf8(s) = &raw_pool[*idx as usize]
+            RawConstantEntry::StringConst(idx) if let RawConstantEntry::Utf8(s) = &raw_pool[*idx as usize - 1]
                 => ConstantEntry::StringConst(s.clone()),
-            RawConstantEntry::MethodType(idx) if let RawConstantEntry::Utf8(s) = &raw_pool[*idx as usize]
+            RawConstantEntry::MethodType(idx) if let RawConstantEntry::Utf8(s) = &raw_pool[*idx as usize - 1]
                 => ConstantEntry::MethodType(s.clone()),
-            RawConstantEntry::Module(idx) if let RawConstantEntry::Utf8(s) = &raw_pool[*idx as usize]
+            RawConstantEntry::Module(idx) if let RawConstantEntry::Utf8(s) = &raw_pool[*idx as usize - 1]
                 => ConstantEntry::Module(s.clone()),
-            RawConstantEntry::Package(idx) if let RawConstantEntry::Utf8(s) = &raw_pool[*idx as usize]
+            RawConstantEntry::Package(idx) if let RawConstantEntry::Utf8(s) = &raw_pool[*idx as usize - 1]
                 => ConstantEntry::Package(s.clone()),
 
-            _ => panic!("bad conversion from {:?}", con)
+            RawConstantEntry::MemberRef(tag, class_idx, name_and_type_idx) => {
+                let mut ret: Option<ConstantEntry> = None;
+                if let RawConstantEntry::Class(class_name_idx) = &raw_pool[*class_idx as usize - 1]{
+                    if let RawConstantEntry::NameAndType(name_idx, descriptor_idx) = &raw_pool[*name_and_type_idx as usize - 1]{
+                        if let RawConstantEntry::Utf8(class_name) = &raw_pool[*class_name_idx as usize - 1]{
+                            if let RawConstantEntry::Utf8(name) = &raw_pool[*name_idx as usize - 1]{
+                                if let RawConstantEntry::Utf8(descriptor) = &raw_pool[*descriptor_idx as usize - 1]{
+                                    ret = Some(ConstantEntry::MemberRef(MemberRef {
+                                        kind: tag_to_member_kind(tag)?,
+                                        owner_name: class_name.clone(),
+                                        name_and_type: NameAndType {
+                                            name: name.clone(),
+                                            descriptor: descriptor.clone(),
+                                        },
+                                    }));
+                                }
+                            }
+                        }
+                    }
+                }
+                ret?
+            }
+
+            RawConstantEntry::NameAndType(name_idx, descriptor_idx) => {
+                let mut ret: Option<ConstantEntry> = None;
+                if let RawConstantEntry::Utf8(name) = &raw_pool[*name_idx as usize - 1] {
+                    if let RawConstantEntry::Utf8(descriptor) = &raw_pool[*descriptor_idx as usize - 1] {
+                        ret = Some(ConstantEntry::NameAndType(NameAndType {
+                            name: name.clone(),
+                            descriptor: descriptor.clone(),
+                        }));
+                    }
+                }
+                ret?
+            }
+
+            _ => panic!("Bad conversion from {:?}", con)
         });
     }
     return Some(ret);
+}
+
+fn tag_to_member_kind(tag: &u8) -> Option<MemberKind>{
+    return match tag {
+        9 => Some(MemberKind::Field),
+        10 => Some(MemberKind::Method),
+        11 => Some(MemberKind::InterfaceMethod),
+        _ => {
+            panic!("bad")
+        }
+    }
 }
 
 

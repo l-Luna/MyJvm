@@ -78,11 +78,11 @@ pub enum DynamicReferenceType{
 }
 
 #[derive(Debug)]
-pub struct NameAndType{ name: String, descriptor: String }
+pub struct NameAndType{ pub name: String, pub descriptor: String }
 #[derive(Debug)]
-pub struct MemberRef{ kind: MemberKind, name: String, ntype: NameAndType }
+pub struct MemberRef{ pub kind: MemberKind, pub owner_name: String, pub name_and_type: NameAndType }
 #[derive(Debug)]
-pub struct Dynamic{ bootstrap: NameAndType, value: NameAndType }
+pub struct Dynamic{ pub bootstrap: NameAndType, pub value: NameAndType }
 
 #[derive(Debug)]
 pub struct Attribute{
