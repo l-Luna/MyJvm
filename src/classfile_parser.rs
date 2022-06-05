@@ -1,4 +1,4 @@
-use classfile_structs::{Classfile, ConstantEntry, MemberKind, MemberRef, NameAndType, RawConstantEntry};
+use classfile_structs::{Classfile, ConstantEntry, DynamicReferenceType, MemberKind, MemberRef, NameAndType, RawConstantEntry};
 
 pub fn parse(file: &mut Vec<u8>) -> Result<Classfile, &str>{
     if !expect_int(file, 0xCAFEBABE){
@@ -13,13 +13,21 @@ pub fn parse(file: &mut Vec<u8>) -> Result<Classfile, &str>{
 
     let Some(flags) = next_short(file) else { return Err("Missing access flags"); };
 
+    let ConstantEntry::Class(this_class) = &constants[next_short_err(file)? as usize - 1]
+        else { return Err("Unable to resolve this class's name"); };
+    let this_class: String = this_class.clone(); // own the string
+
+    let ConstantEntry::Class(super_class) = &constants[next_short_err(file)? as usize - 1]
+        else { return Err("Unable to resolve super class's name"); };
+    let super_class: String = super_class.clone(); // own the string
+
     return Ok(Classfile{
         major_ver,
         minor_ver,
         constants,
         flags,
-        this_class: 0,
-        super_class: 0,
+        this_class,
+        super_class,
         interfaces: vec![],
         fields: vec![],
         methods: vec![],
@@ -115,6 +123,7 @@ fn resolve_constants(raw_pool: Vec<RawConstantEntry>) -> Option<Vec<ConstantEntr
                 => ConstantEntry::Package(s.clone()),
 
             RawConstantEntry::MemberRef(tag, class_idx, name_and_type_idx) => {
+                // TODO: split up into functions so we don't need... this
                 let mut ret: Option<ConstantEntry> = None;
                 if let RawConstantEntry::Class(class_name_idx) = &raw_pool[*class_idx as usize - 1]{
                     if let RawConstantEntry::NameAndType(name_idx, descriptor_idx) = &raw_pool[*name_and_type_idx as usize - 1]{
@@ -150,6 +159,37 @@ fn resolve_constants(raw_pool: Vec<RawConstantEntry>) -> Option<Vec<ConstantEntr
                 ret?
             }
 
+            RawConstantEntry::MethodHandle(dyn_ref_idx, member_ref_idx) => {
+                // also... same here
+                let mut ret: Option<ConstantEntry> = None;
+                if let RawConstantEntry::MemberRef(mtype, owner_class_idx, name_and_type_idx) = &raw_pool[*member_ref_idx as usize - 1] {
+                    if let RawConstantEntry::Class(class_name_idx) = &raw_pool[*owner_class_idx as usize - 1] {
+                        if let RawConstantEntry::Utf8(class_name) = &raw_pool[*class_name_idx as usize - 1] {
+                            if let RawConstantEntry::NameAndType(name_idx, desc_idx) = &raw_pool[*name_and_type_idx as usize - 1] {
+                                if let RawConstantEntry::Utf8(name) = &raw_pool[*name_idx as usize - 1] {
+                                    if let RawConstantEntry::Utf8(desc) = &raw_pool[*desc_idx as usize - 1] {
+                                        ret = Some(ConstantEntry::MethodHandle(
+                                            dyn_ref_index_to_type(dyn_ref_idx)?,
+                                            MemberRef {
+                                                kind: tag_to_member_kind(mtype)?,
+                                                owner_name: class_name.clone(),
+                                                name_and_type: NameAndType {
+                                                    name: name.clone(),
+                                                    descriptor: desc.clone()
+                                                }
+                                            }
+                                        ));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                ret?
+            }
+
+            // TODO: Dynamic
+
             _ => panic!("Bad conversion from {:?}", con)
         });
     }
@@ -161,9 +201,22 @@ fn tag_to_member_kind(tag: &u8) -> Option<MemberKind>{
         9 => Some(MemberKind::Field),
         10 => Some(MemberKind::Method),
         11 => Some(MemberKind::InterfaceMethod),
-        _ => {
-            panic!("bad")
-        }
+        _ => None
+    }
+}
+
+fn dyn_ref_index_to_type(idx: &u8) -> Option<DynamicReferenceType>{
+    return match idx {
+        // TODO: is this correct?
+        0 => Some(DynamicReferenceType::GetField),
+        1 => Some(DynamicReferenceType::GetStatic),
+        2 => Some(DynamicReferenceType::PutField),
+        3 => Some(DynamicReferenceType::PutStatic),
+        4 => Some(DynamicReferenceType::InvokeVirtual),
+        5 => Some(DynamicReferenceType::NewInvokeSpecial),
+        6 => Some(DynamicReferenceType::InvokeStatic),
+        7 => Some(DynamicReferenceType::InvokeSpecial),
+        _ => None
     }
 }
 
@@ -181,6 +234,13 @@ fn next_short(stream: &mut Vec<u8>) -> Option<u16>{
         (Some(left), Some(right)) => Some(((left as u16) << 8) | (right as u16)),
         (_, _) => None
     };
+}
+
+fn next_short_err(stream: &mut Vec<u8>) -> Result<u16, &'static str>{
+    return match next_short(stream) {
+        Some(u) => Ok(u),
+        None => Err("Unexpected end of file")
+    }
 }
 
 fn next_uint(stream: &mut Vec<u8>) -> Option<u32>{

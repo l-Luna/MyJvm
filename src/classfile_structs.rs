@@ -9,8 +9,8 @@ pub struct Classfile{
     pub flags: u16,
 
     // constant pool indexes (maybe replace with proper references?)
-    pub this_class: u16,
-    pub super_class: u16,
+    pub this_class: String,
+    pub super_class: String,
     pub interfaces: Vec<u16>,
 
     pub fields: Vec<FieldInfo>,
