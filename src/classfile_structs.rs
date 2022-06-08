@@ -126,8 +126,8 @@ pub enum Attribute{ // ordered by location
     ConstantValue(ConstantEntry),
 
     // Method attributes
-    Code{ /* TODO */ },
-    Exceptions{ classnames: Vec<String> },
+    Code(Code),
+    Exceptions(Vec<String>),
     RuntimeVisibleParameterAnnotations(Vec<Vec<Annotation>>),
     RuntimeInvisibleParameterAnnotations(Vec<Vec<Annotation>>),
     AnnotationDefault{ /* TODO */ },
@@ -181,4 +181,21 @@ pub struct BootstrapEntry{
     pub ref_type: DynamicReferenceType,
     pub method: MemberRef,
     pub args: Vec<ConstantEntry>
+}
+
+#[derive(Debug)]
+pub struct ExceptionHandler{
+    pub start_idx: u16,
+    pub end_idx: u16,
+    pub handler_idx: u16,
+    pub catch_types: String
+}
+
+#[derive(Debug)]
+pub struct Code{
+    pub max_stack: u16,
+    pub max_locals: u16,
+    pub bytecode: Vec<u8>,
+    pub exception_handlers: Vec<ExceptionHandler>,
+    pub attributes: Vec<Attribute>
 }
