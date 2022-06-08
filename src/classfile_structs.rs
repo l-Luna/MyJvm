@@ -1,3 +1,5 @@
+use std::iter::Map;
+
 
 #[derive(Debug)]
 pub struct Classfile{
@@ -85,16 +87,98 @@ pub struct MemberRef{ pub kind: MemberKind, pub owner_name: String, pub name_and
 pub struct Dynamic{ pub bootstrap: NameAndType, pub value: NameAndType }
 
 #[derive(Debug)]
-pub struct Attribute{
-
-}
-
-#[derive(Debug)]
 pub struct FieldInfo{
-
+    pub flags: u16,
+    pub name: String,
+    pub desc: String,
+    pub attributes: Vec<Attribute>
 }
 
 #[derive(Debug)]
 pub struct MethodInfo{
+    pub flags: u16,
+    pub name: String,
+    pub desc: String,
+    pub attributes: Vec<Attribute>
+}
 
+#[derive(Debug)]
+pub struct RecordComponentInfo{
+    pub name: String,
+    pub desc: String,
+    pub attributes: Vec<Attribute>
+}
+
+#[derive(Debug)]
+pub enum Attribute{ // ordered by location
+    // Classfile attributes
+    SourceFile(String),
+    InnerClasses{ /* TODO */ },
+    EnclosingMethod{ owner_class: String, owner_method: NameAndType },
+    SourceDebugExtension(String),
+    BootstrapMethods(Vec<BootstrapEntry>),
+    Module{ /* TODO */ }, ModulePackages(Vec<String>), ModuleMainClass(String),
+    NestHost(String), NestMembers(Vec<String>),
+    Record(Vec<RecordComponentInfo>),
+    PermittedSubclasses(Vec<String>),
+    
+    // Field attributes
+    ConstantValue(ConstantEntry),
+
+    // Method attributes
+    Code{ /* TODO */ },
+    Exceptions{ classnames: Vec<String> },
+    RuntimeVisibleParameterAnnotations(Vec<Vec<Annotation>>),
+    RuntimeInvisibleParameterAnnotations(Vec<Vec<Annotation>>),
+    AnnotationDefault{ /* TODO */ },
+    MethodParameters(Vec<ParameterInfo>),
+
+    // Code attributes
+    LineNumberTable(Vec<LineNumberMapping>),
+    LocalVariableTable(Vec<LocalVariableEntry>),
+    LocalVariableTypeTable(Vec<LocalVariableEntry>),
+    StackMapTable{ /* TODO */ },
+
+    // Class, member attributes
+    Synthetic, Deprecated, // zero-length
+    // Class, member, record component attributes
+    Signature(String),
+    // Class, member, record component, code attributes
+    RuntimeVisibleAnnotations(Vec<Annotation>), RuntimeInvisibleAnnotations(Vec<Annotation>),
+    RuntimeVisibleTypeAnnotations{ /* TODO */ }, RuntimeInvisibleTypeAnnotations{ /* TODO */ },
+}
+
+#[derive(Debug)]
+pub struct LineNumberMapping{
+    pub bytecode_idx: u16,
+    pub line_number: u16
+}
+
+#[derive(Debug)]
+pub struct LocalVariableEntry{
+    pub start_idx: u16,
+    pub end_idx: u16,
+    pub name: String,
+    pub desc: String,
+    pub sig: Option<String>,
+    pub lv_idx: u16
+}
+
+#[derive(Debug)]
+pub struct ParameterInfo{
+    pub name: Option<String>,
+    pub flags: u16
+}
+
+#[derive(Debug)]
+pub struct Annotation{
+    pub class: String,
+    pub data: Map<String, Vec<u8>> // TODO: annotation parsing
+}
+
+#[derive(Debug)]
+pub struct BootstrapEntry{
+    pub ref_type: DynamicReferenceType,
+    pub method: MemberRef,
+    pub args: Vec<ConstantEntry>
 }
