@@ -12,6 +12,7 @@ pub fn parse(file: &mut Vec<u8>) -> Result<Classfile, &str>{
     let Some(constants) = resolve_constants(raw_constants) else { return Err("Unable to resolve constant pool"); };
 
     let Some(flags) = next_short(file) else { return Err("Missing access flags"); };
+    crate::constants::check_class_flags(flags)?;
 
     let ConstantEntry::Class(this_class) = &constants[next_short_err(file)? as usize - 1]
         else { return Err("Unable to resolve this class's name"); };

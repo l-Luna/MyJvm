@@ -11,6 +11,7 @@ use std::{io, path};
 
 mod classfile_structs;
 mod classfile_parser;
+mod constants;
 
 fn main() {
     // let's parse a classfile to start with
