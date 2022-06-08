@@ -1,4 +1,4 @@
-use classfile_structs::{Classfile, ConstantEntry, DynamicReferenceType, MemberKind, MemberRef, NameAndType, RawConstantEntry};
+use classfile_structs::*;
 
 pub fn parse(file: &mut Vec<u8>) -> Result<Classfile, &str>{
     if !expect_int(file, 0xCAFEBABE){
@@ -74,7 +74,7 @@ fn parse_constants(file: &mut Vec<u8>) -> Option<Vec<RawConstantEntry>>{
     return Some(pool);
 }
 
-fn parse_modified_utf8(file: &mut Vec<u8>) -> Option<String>{
+pub fn parse_modified_utf8(file: &mut Vec<u8>) -> Option<String>{
     let len = next_short(file)?;
     let mut buffer = next_vec(file, len as usize);
     let mut current: String = String::with_capacity(len as usize);
@@ -220,6 +220,25 @@ fn dyn_ref_index_to_type(idx: &u8) -> Option<DynamicReferenceType>{
         _ => None
     }
 }
+
+fn parse_attributes(file: &mut Vec<u8>, const_pool: Vec<ConstantEntry>) -> Result<Vec<Attribute>, &'static str>{
+    let Some(count) = next_short(file) else { return Err("Missing attribute count"); };
+    let mut ret: Vec<Attribute> = Vec::with_capacity(count as usize);
+    for _ in 0..count{
+        let Some(name_idx) = next_short(file) else { return Err("Missing attribute name"); };
+        if let ConstantEntry::Utf8(name) = &const_pool[name_idx as usize]{
+            ret.push(parse_attribute(file, &const_pool, name)?);
+        }else{
+            return Err("Attribute name index is invalid");
+        }
+    }
+    return Ok(ret);
+}
+
+fn parse_attribute(file: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>, name: &String) -> Result<Attribute, &'static str>{
+    
+    return Err("dummy");
+} 
 
 
 
