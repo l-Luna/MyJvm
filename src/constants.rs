@@ -3,7 +3,7 @@
 const ACC_PUBLIC: u16          = 0x0001;
 const ACC_PRIVATE: u16         = 0x0002;
 const ACC_PROTECTED: u16       = 0x0004;
-const ACC_const: u16          = 0x0008;
+const ACC_STATIC: u16          = 0x0008;
 const ACC_FINAL: u16           = 0x0010;
 const ACC_ABSTRACT: u16        = 0x0400;
 const ACC_SYNTHETIC: u16       = 0x1000;
@@ -16,8 +16,8 @@ const CLASS_ACC_ANNOTATION: u16    = 0x2000;
 const CLASS_ACC_MODULE: u16        = 0x8000;
 
 // Field flags
-const FIELD_ACC_VOLATILE: u16      = 0x4000;
-const FIELD_ACC_TRANSIENTE: u16    = 0x4000;
+const FIELD_ACC_VOLATILE: u16      = 0x0040;
+const FIELD_ACC_TRANSIENT: u16     = 0x0080;
 
 pub fn bit_set(flags: u16, flag: u16) -> bool{
     return (flags & flag) == flag;

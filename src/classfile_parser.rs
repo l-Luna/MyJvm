@@ -1,4 +1,5 @@
 use classfile_structs::*;
+use constants;
 
 pub fn parse(file: &mut Vec<u8>) -> Result<Classfile, &str>{
     if !expect_int(file, 0xCAFEBABE){
@@ -12,27 +13,53 @@ pub fn parse(file: &mut Vec<u8>) -> Result<Classfile, &str>{
     let Some(constants) = resolve_constants(raw_constants) else { return Err("Unable to resolve constant pool"); };
 
     let Some(flags) = next_short(file) else { return Err("Missing access flags"); };
-    crate::constants::check_class_flags(flags)?;
+    constants::check_class_flags(flags)?;
 
     let ConstantEntry::Class(this_class) = &constants[next_short_err(file)? as usize - 1]
         else { return Err("Unable to resolve this class's name"); };
-    let this_class: String = this_class.clone(); // own the string
+    let name: String = this_class.clone(); // own the string
 
     let ConstantEntry::Class(super_class) = &constants[next_short_err(file)? as usize - 1]
         else { return Err("Unable to resolve super class's name"); };
     let super_class: String = super_class.clone(); // own the string
+
+    let Some(ifaces_count) = next_short(file) else { return Err("Missing interfaces count"); };
+    let mut interfaces: Vec<String> = Vec::with_capacity(ifaces_count as usize);
+    for _ in 0..ifaces_count {
+        let ConstantEntry::Utf8(interface) = &constants[next_short_err(file)? as usize - 1]
+            else { return Err("Unable to resolve interface name"); };
+        interfaces.push(interface.clone());
+    }
+
+    let Some(field_count) = next_short(file) else { return Err("Missing field count"); };
+    let mut fields: Vec<FieldInfo> = Vec::with_capacity(field_count as usize);
+    for _ in 0..field_count {
+        fields.push(parse_member(file, &constants,
+            |flags, name, desc, attributes| FieldInfo { flags, name, desc, attributes })?);
+    }
+
+    let Some(method_count) = next_short(file) else { return Err("Missing method count"); };
+    let mut methods: Vec<MethodInfo> = Vec::with_capacity(method_count as usize);
+    for _ in 0..method_count {
+        methods.push(parse_member(file, &constants,
+            |flags, name, desc, attributes| MethodInfo { flags, name, desc, attributes })?);
+    }
+
+    let attributes = parse_attributes(file, &constants)?;
+
+    // TODO: check EOF
 
     return Ok(Classfile{
         major_ver,
         minor_ver,
         constants,
         flags,
-        this_class,
+        name,
         super_class,
-        interfaces: vec![],
-        fields: vec![],
-        methods: vec![],
-        attributes: vec![]
+        interfaces,
+        fields,
+        methods,
+        attributes
     });
 }
 
@@ -221,13 +248,17 @@ fn dyn_ref_index_to_type(idx: &u8) -> Option<DynamicReferenceType>{
     }
 }
 
-fn parse_attributes(file: &mut Vec<u8>, const_pool: Vec<ConstantEntry>) -> Result<Vec<Attribute>, &'static str>{
+fn parse_attributes(file: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Result<Vec<Attribute>, &'static str>{
     let Some(count) = next_short(file) else { return Err("Missing attribute count"); };
     let mut ret: Vec<Attribute> = Vec::with_capacity(count as usize);
     for _ in 0..count{
         let Some(name_idx) = next_short(file) else { return Err("Missing attribute name"); };
         if let ConstantEntry::Utf8(name) = &const_pool[name_idx as usize]{
-            ret.push(parse_attribute(file, &const_pool, name)?);
+            let Some(size) = next_uint(file) else { return Err("Missing attribute size"); };
+            let attr_data = next_vec(file, size as usize);
+            if let Some(attr) = parse_attribute(attr_data, &const_pool, name)?{
+                ret.push(attr);
+            }
         }else{
             return Err("Attribute name index is invalid");
         }
@@ -235,12 +266,39 @@ fn parse_attributes(file: &mut Vec<u8>, const_pool: Vec<ConstantEntry>) -> Resul
     return Ok(ret);
 }
 
-fn parse_attribute(file: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>, name: &String) -> Result<Attribute, &'static str>{
-    
-    return Err("dummy");
+fn parse_attribute(mut attr: Vec<u8>, const_pool: &Vec<ConstantEntry>, name: &String) -> Result<Option<Attribute>, &'static str>{
+    let name: &str = name;
+    match name {
+        "SourceFile" => {
+            let ConstantEntry::Utf8(source) = &const_pool[next_short_err(&mut attr)? as usize - 1] else { return Err("Invalid SourceFile name index") };
+            return Ok(Some(Attribute::SourceFile(source.clone())));
+        }
+        
+        "Synthetic" => return Ok(Some(Attribute::Synthetic)),
+        "Deprecated" => return Ok(Some(Attribute::Deprecated)),
+
+        _ => {}
+    }
+    return Ok(None); // unknown attributes are valid
 } 
 
+fn parse_member<T>(file: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>, constr: fn(u16, String, String, Vec<Attribute>) -> T) -> Result<T, &'static str>{
+    let flags = next_short_err(file)?;
+    
+    let name_idx = next_short_err(file)?;
+    let ConstantEntry::Utf8(name) = &const_pool[name_idx as usize - 1] else { return Err("Invalid field name index"); };
+    let name = name.clone();
+    
+    let desc_idx = next_short_err(file)?;
+    let ConstantEntry::Utf8(desc) = &const_pool[desc_idx as usize - 1] else { return Err("Invalid field descriptor index"); };
+    let desc = desc.clone();
+    
+    let attrs = parse_attributes(file, &const_pool)?;
 
+    return Ok(constr(flags, name, desc, attrs));
+}
+
+// next data methods
 
 fn next_byte(stream: &mut Vec<u8>) -> Option<u8>{
     if stream.len() == 0 {
@@ -307,7 +365,7 @@ fn next_vec<T>(stream: &mut Vec<T>, amount: usize) -> Vec<T>{
     return ret;
 }
 
-
+// expect data methods
 
 fn expect_byte(stream: &mut Vec<u8>, expected: u8) -> bool{
     expect_vec(stream, vec![expected])
