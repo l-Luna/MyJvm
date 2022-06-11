@@ -1,5 +1,5 @@
-use classfile_structs::*;
-use constants;
+use super::classfile_structs::*;
+use crate::constants;
 
 pub fn parse(file: &mut Vec<u8>) -> Result<Classfile, &str>{
     if !expect_int(file, 0xCAFEBABE){
@@ -13,7 +13,7 @@ pub fn parse(file: &mut Vec<u8>) -> Result<Classfile, &str>{
     let Some(constants) = resolve_constants(raw_constants) else { return Err("Unable to resolve constant pool"); };
 
     let Some(flags) = next_short(file) else { return Err("Missing access flags"); };
-    constants::check_class_flags(flags)?;
+    check_class_flags(flags)?;
 
     let ConstantEntry::Class(this_class) = &constants[next_short_err(file)? as usize - 1]
         else { return Err("Unable to resolve this class's name"); };
@@ -25,7 +25,7 @@ pub fn parse(file: &mut Vec<u8>) -> Result<Classfile, &str>{
 
     let Some(ifaces_count) = next_short(file) else { return Err("Missing interfaces count"); };
     let mut interfaces: Vec<String> = Vec::with_capacity(ifaces_count as usize);
-    for _ in 0..ifaces_count {
+    for _ in 0..ifaces_count{
         let ConstantEntry::Utf8(interface) = &constants[next_short_err(file)? as usize - 1]
             else { return Err("Unable to resolve interface name"); };
         interfaces.push(interface.clone());
@@ -33,14 +33,14 @@ pub fn parse(file: &mut Vec<u8>) -> Result<Classfile, &str>{
 
     let Some(field_count) = next_short(file) else { return Err("Missing field count"); };
     let mut fields: Vec<FieldInfo> = Vec::with_capacity(field_count as usize);
-    for _ in 0..field_count {
+    for _ in 0..field_count{
         fields.push(parse_member(file, &constants,
             |flags, name, desc, attributes| FieldInfo { flags, name, desc, attributes })?);
     }
 
     let Some(method_count) = next_short(file) else { return Err("Missing method count"); };
     let mut methods: Vec<MethodInfo> = Vec::with_capacity(method_count as usize);
-    for _ in 0..method_count {
+    for _ in 0..method_count{
         methods.push(parse_member(file, &constants,
             |flags, name, desc, attributes| MethodInfo { flags, name, desc, attributes })?);
     }
@@ -348,6 +348,37 @@ fn parse_member<T>(file: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>, constr: 
     let attrs = parse_attributes(file, &const_pool)?;
 
     return Ok(constr(flags, name, desc, attrs));
+}
+
+// validation methods
+
+pub fn check_class_flags(flags: u16) -> Result<(), &'static str>{
+    if constants::bit_set(flags, constants::CLASS_ACC_INTERFACE){
+        if !constants::bit_set(flags, constants::ACC_ABSTRACT){
+            return Err("Interface class must be abstract");
+        }
+        if constants::bit_set(flags, constants::ACC_FINAL){
+            return Err("Interface class must not be final");
+        }
+        if constants::bit_set(flags, constants::CLASS_ACC_SUPER){
+            return Err("Interface class must not have \"super\" flag");
+        }
+        if constants::bit_set(flags, constants::ACC_ENUM){
+            return Err("Enum class must not be marked as interface");
+        }
+        if constants::bit_set(flags, constants::CLASS_ACC_MODULE){
+            return Err("Module info classfile must not be marked as interface");
+        }
+    }else{
+        if constants::bit_set(flags, constants::CLASS_ACC_ANNOTATION){
+            return Err("Annotation class must be marked as interface");
+        }
+    }
+    if constants::bit_set(flags, constants::ACC_ABSTRACT) && constants::bit_set(flags, constants::ACC_FINAL){
+        return Err("Class cannot be both abstract and final");
+    }
+    // TODO: check modules have no other flags
+    return Ok(());
 }
 
 // next data methods

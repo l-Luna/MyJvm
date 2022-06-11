@@ -1,6 +1,5 @@
 use std::iter::Map;
 
-
 #[derive(Debug)]
 pub struct Classfile{
     pub major_ver: u16,

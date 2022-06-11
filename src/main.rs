@@ -9,9 +9,9 @@ use std::fs::File;
 use std::io::Read;
 use std::{io, path};
 
-mod classfile_structs;
-mod classfile_parser;
 mod constants;
+mod runtime;
+mod parser;
 
 fn main() {
     // let's parse a classfile to start with
@@ -27,7 +27,7 @@ fn main() {
     let mut class: Vec<u8> = Vec::new();
     classfile.read_to_end(&mut class).expect("Unable to read classfile data");
 
-    match classfile_parser::parse(&mut class){
+    match parser::classfile_parser::parse(&mut class){
         Ok(u) => println!("{:?}", u),
         Err(u) => panic!("oh no: {}", u)
     }
