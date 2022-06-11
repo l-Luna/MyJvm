@@ -193,7 +193,15 @@ pub struct ExceptionHandler{
 pub struct Code{
     pub max_stack: u16,
     pub max_locals: u16,
-    pub bytecode: Vec<u8>,
+    pub bytecode: Vec<Instruction>,
     pub exception_handlers: Vec<ExceptionHandler>,
     pub attributes: Vec<Attribute>
+}
+
+#[derive(Debug)]
+pub enum Instruction{
+    // only supported ones rn
+    BIPush(i8),
+    
+    IReturn
 }

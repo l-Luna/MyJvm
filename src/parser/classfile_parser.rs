@@ -282,7 +282,8 @@ fn parse_attribute(mut attr: Vec<u8>, const_pool: &Vec<ConstantEntry>, name: &St
             let max_locals = next_short_err(&mut attr)?;
 
             let bytecode_length = next_uint_err(&mut attr)?;
-            let bytecode = next_vec(&mut attr, bytecode_length as usize);
+            let mut bytecode = next_vec(&mut attr, bytecode_length as usize);
+            let bytecode = parse_bytecode(&mut bytecode, const_pool)?;
 
             let exception_handlers_count = next_short_err(&mut attr)?;
             let mut exception_handlers: Vec<ExceptionHandler> = Vec::with_capacity(exception_handlers_count as usize);
@@ -332,6 +333,28 @@ fn parse_exception_handler(attr: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) 
             Err("Exception handler type name index is invalid")
         }
     }
+}
+
+fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Result<Vec<Instruction>, &'static str>{
+    let mut result: Vec<Instruction> = Vec::new();
+    while bytecode.len() > 0 {
+        let opcode = bytecode.remove(0);
+        match opcode{
+            constants::OP_BIPUSH => {
+                if let Some(it) = next_sbyte(bytecode){
+                    result.push(Instruction::BIPush(it));
+                }else{
+                    return Err("Missing byte operand of bipush");
+                }
+            }
+            constants::OP_IRETURN => result.push(Instruction::IReturn),
+            _ => {
+                //return Err("");
+                // TODO: error, once all valid opcodes are handled
+            }
+        }
+    }
+    return Ok(result);
 }
 
 fn parse_member<T>(file: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>, constr: fn(u16, String, String, Vec<Attribute>) -> T) -> Result<T, &'static str>{
@@ -388,6 +411,13 @@ fn next_byte(stream: &mut Vec<u8>) -> Option<u8>{
         return None;
     }
     return Some(stream.remove(0));
+}
+
+fn next_sbyte(stream: &mut Vec<u8>) -> Option<i8>{
+    if stream.len() == 0 {
+        return None;
+    }
+    return Some(i8::from_be_bytes([stream.remove(0)]));
 }
 
 fn next_short(stream: &mut Vec<u8>) -> Option<u16>{

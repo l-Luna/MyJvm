@@ -24,4 +24,6 @@ pub fn bit_set(flags: u16, flag: u16) -> bool{
 }
 
 // Bytecode instructions
+pub const OP_BIPUSH: u8                 = 16;
+pub const OP_IRETURN: u8                = 172;
 // ...
