@@ -7,7 +7,7 @@ use super::jvalue::JObject;
 // References are indexes into the "active" list.
 // On GC, reachable objects are moved to the "inactive", and the two lists are swapped.
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct JRef{
     heap_idx: usize // used in `get`
 }

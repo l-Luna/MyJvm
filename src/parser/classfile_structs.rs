@@ -218,9 +218,9 @@ pub enum Instruction{
     ISub,
     LSub,
 
-    Goto(u32),
-    IfEq(u32),
-    IfIcmpGe(u32),
+    Goto(i32),
+    IfEq(i32),
+    IfIcmpGe(i32),
 
     I2L,
     L2I,

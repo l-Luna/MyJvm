@@ -7,6 +7,7 @@ use std::fs::File;
 use std::io::Read;
 use std::{io, path};
 use parser::classfile_structs::Attribute::Code;
+use runtime::jvalue::JValue;
 
 mod constants;
 mod runtime;
@@ -46,7 +47,7 @@ fn main() {
             // find code attribute
             for attribute in &m.attributes {
                 if let Code(c) = attribute {
-                    let u = runtime::interpreter::interpret(&m, Vec::new(), &c);
+                    let u = runtime::interpreter::interpret(&m, vec![JValue::Int(0)], &c);
                     match u{
                         Ok(u) => println!("{:?}", u),
                         Err(u) => panic!("oh no: {}", u)

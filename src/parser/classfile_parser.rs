@@ -442,29 +442,29 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
             constants::OP_LSUB => result.push((idx, Instruction::LSub)),
 
             constants::OP_GOTO => {
-                if let Some(it) = next_short(bytecode){
-                    result.push((idx, Instruction::Goto(it as u32)));
+                if let Some(it) = next_sshort(bytecode){
+                    result.push((idx, Instruction::Goto(it as i32)));
                 }else{
                     return Err("Missing short operand of goto");
                 }
             }
             constants::OP_GOTO_W => {
-                if let Some(it) = next_uint(bytecode){
+                if let Some(it) = next_int(bytecode){
                     result.push((idx, Instruction::Goto(it)));
                 }else{
                     return Err("Missing uint operand of goto_w");
                 }
             }
             constants::OP_IF_EQ => {
-                if let Some(it) = next_short(bytecode){
-                    result.push((idx, Instruction::IfEq(it as u32)));
+                if let Some(it) = next_sshort(bytecode){
+                    result.push((idx, Instruction::IfEq(it as i32)));
                 }else{
                     return Err("Missing short operand of ifeq");
                 }
             }
             constants::OP_IF_ICMPGE => {
-                if let Some(it) = next_short(bytecode){
-                    result.push((idx, Instruction::IfIcmpGe(it as u32)));
+                if let Some(it) = next_sshort(bytecode){
+                    result.push((idx, Instruction::IfIcmpGe(it as i32)));
                 }else{
                     return Err("Missing short operand of ifIicmpgt");
                 }
@@ -553,6 +553,13 @@ fn next_sbyte(stream: &mut Vec<u8>) -> Option<i8>{
 fn next_short(stream: &mut Vec<u8>) -> Option<u16>{
     return match (next_byte(stream), next_byte(stream)) {
         (Some(left), Some(right)) => Some(((left as u16) << 8) | (right as u16)),
+        (_, _) => None
+    };
+}
+
+fn next_sshort(stream: &mut Vec<u8>) -> Option<i16>{
+    return match (next_byte(stream), next_byte(stream)) {
+        (Some(left), Some(right)) => Some(i16::from_be_bytes([left, right])),
         (_, _) => None
     };
 }
