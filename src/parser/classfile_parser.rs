@@ -342,15 +342,16 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
         match opcode{
             constants::OP_BIPUSH => {
                 if let Some(it) = next_sbyte(bytecode){
-                    result.push(Instruction::BIPush(it));
+                    result.push(Instruction::IConst(it));
                 }else{
                     return Err("Missing byte operand of bipush");
                 }
             }
             constants::OP_IRETURN => result.push(Instruction::IReturn),
-            _ => {
+            other => {
                 //return Err("");
                 // TODO: error, once all valid opcodes are handled
+                println!("what's a {}?", other);
             }
         }
     }

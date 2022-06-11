@@ -24,6 +24,30 @@ pub fn bit_set(flags: u16, flag: u16) -> bool{
 }
 
 // Bytecode instructions
+// Roughly the same order as classfile_structs::Instruction
+pub const OP_ICONST_M1: u8              = 2;
+pub const OP_ICONST_0: u8               = 3;
+pub const OP_ICONST_1: u8               = 4;
+pub const OP_ICONST_2: u8               = 5;
+pub const OP_ICONST_3: u8               = 6;
+pub const OP_ICONST_4: u8               = 7;
+pub const OP_ICONST_5: u8               = 8;
 pub const OP_BIPUSH: u8                 = 16;
+
+pub const OP_LDC: u8                    = 18;
+pub const OP_LDC_W: u8                  = 19;
+pub const OP_LDC2_W: u8                 = 20;
+
+pub const OP_IADD: u8                   = 96;
+
+pub const OP_GOTO: u8                   = 167;
+pub const OP_GOTO_W: u8                 = 200;
+pub const OP_IF_ICMPEQ: u8              = 159;
+pub const OP_IF_ICMPNE: u8              = 160;
+pub const OP_IF_ICMPLT: u8              = 161;
+pub const OP_IF_ICMPGE: u8              = 162;
+pub const OP_IF_ICMPGT: u8              = 163;
+pub const OP_IF_ICMPLE: u8              = 164;
+
 pub const OP_IRETURN: u8                = 172;
 // ...

@@ -7,7 +7,7 @@ pub fn interpret(method: &MethodInfo, args: Vec<JValue>, code: &Code) -> Result<
     while i < code.bytecode.len() {
         let instr = code.bytecode.get(i).expect("in range");
         match instr {
-            Instruction::BIPush(it) => {
+            Instruction::IConst(it) => {
                 stack.insert(0, JValue::Int(*it as i32));
             },
             Instruction::IReturn => {

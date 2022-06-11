@@ -199,9 +199,29 @@ pub struct Code{
 }
 
 #[derive(Debug)]
+// only supported ones rn
 pub enum Instruction{
-    // only supported ones rn
-    BIPush(i8),
-    
+    IConst(i8), // includes iconst_x and bipush
+    LConst(i8),
+
+    Ldc(ConstantEntry), // copy it here for now
+
+    IStore(u8),
+    LStore(u8),
+
+    ILoad(u8),
+    LLoad(u8),
+
+    IInc,
+    IAdd,
+    ISub,
+    LAdd,
+
+    Goto(u32),
+    IfIcmpGe(u32),
+
+    L2I,
+    I2L,
+
     IReturn
 }
