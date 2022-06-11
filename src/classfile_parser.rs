@@ -253,7 +253,7 @@ fn parse_attributes(file: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Resu
     let mut ret: Vec<Attribute> = Vec::with_capacity(count as usize);
     for _ in 0..count{
         let Some(name_idx) = next_short(file) else { return Err("Missing attribute name"); };
-        if let ConstantEntry::Utf8(name) = &const_pool[name_idx as usize]{
+        if let ConstantEntry::Utf8(name) = &const_pool[name_idx as usize - 1]{
             let Some(size) = next_uint(file) else { return Err("Missing attribute size"); };
             let attr_data = next_vec(file, size as usize);
             if let Some(attr) = parse_attribute(attr_data, &const_pool, name)?{
@@ -268,7 +268,7 @@ fn parse_attributes(file: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Resu
 
 fn parse_attribute(mut attr: Vec<u8>, const_pool: &Vec<ConstantEntry>, name: &String) -> Result<Option<Attribute>, &'static str>{
     let name: &str = name;
-    match name {
+    match name{
         "SourceFile" => {
             let ConstantEntry::Utf8(source) = &const_pool[next_short_err(&mut attr)? as usize - 1] else { return Err("Invalid SourceFile name index") };
             return Ok(Some(Attribute::SourceFile(source.clone())));
@@ -277,10 +277,62 @@ fn parse_attribute(mut attr: Vec<u8>, const_pool: &Vec<ConstantEntry>, name: &St
         "Synthetic" => return Ok(Some(Attribute::Synthetic)),
         "Deprecated" => return Ok(Some(Attribute::Deprecated)),
 
-        _ => {}
+        "Code" => {
+            let max_stack = next_short_err(&mut attr)?;
+            let max_locals = next_short_err(&mut attr)?;
+
+            let bytecode_length = next_uint_err(&mut attr)?;
+            let bytecode = next_vec(&mut attr, bytecode_length as usize);
+
+            let exception_handlers_count = next_short_err(&mut attr)?;
+            let mut exception_handlers: Vec<ExceptionHandler> = Vec::with_capacity(exception_handlers_count as usize);
+            for _ in 0..exception_handlers_count{
+                exception_handlers.push(parse_exception_handler(&mut attr, const_pool)?);
+            }
+
+            let attributes = parse_attributes(&mut attr, const_pool)?;
+
+            return Ok(Some(Attribute::Code(Code{
+                max_stack,
+                max_locals,
+                bytecode,
+                exception_handlers,
+                attributes
+            })));
+        }
+
+        _ => {
+            println!("Unknown attribute: {}", name);
+        }
     }
     return Ok(None); // unknown attributes are valid
 } 
+
+fn parse_exception_handler(attr: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Result<ExceptionHandler, &'static str>{
+    let start_idx = next_short_err(attr)?;
+    let end_idx = next_short_err(attr)?;
+    let handler_idx = next_short_err(attr)?;
+    let exception_type_idx = next_short_err(attr)?;
+    return if exception_type_idx == 0 {
+        Ok(ExceptionHandler {
+            start_idx,
+            end_idx,
+            handler_idx,
+            catch_type: None
+        })
+    } else {
+        if let ConstantEntry::Utf8(exception_name) = &const_pool[exception_type_idx as usize - 1] {
+            Ok(ExceptionHandler {
+                start_idx,
+                end_idx,
+                handler_idx,
+                catch_type: Some(exception_name.clone())
+            })
+        } else {
+            Err("Exception handler type name index is invalid")
+        }
+    }
+}
 
 fn parse_member<T>(file: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>, constr: fn(u16, String, String, Vec<Attribute>) -> T) -> Result<T, &'static str>{
     let flags = next_short_err(file)?;
@@ -326,6 +378,13 @@ fn next_uint(stream: &mut Vec<u8>) -> Option<u32>{
         (Some(left), Some(right)) => Some(((left as u32) << 16) | (right as u32)),
         (_, _) => None
     };
+}
+
+fn next_uint_err(stream: &mut Vec<u8>) -> Result<u32, &'static str>{
+    return match next_uint(stream) {
+        Some(u) => Ok(u),
+        None => Err("Unexpected end of file")
+    }
 }
 
 fn next_int(stream: &mut Vec<u8>) -> Option<i32>{

@@ -187,7 +187,7 @@ pub struct ExceptionHandler{
     pub start_idx: u16,
     pub end_idx: u16,
     pub handler_idx: u16,
-    pub catch_types: String
+    pub catch_type: Option<String>
 }
 
 #[derive(Debug)]
