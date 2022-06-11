@@ -33,6 +33,8 @@ fn main() {
         Err(u) => panic!("oh no: {}", u)
     }
 
+    runtime::heap::setup();
+
     // very temporary ofc
     let mut method = String::new();
     io::stdin().read_line(&mut method).expect("Need to specify a method");

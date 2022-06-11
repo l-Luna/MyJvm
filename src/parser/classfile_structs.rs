@@ -45,7 +45,7 @@ pub enum RawConstantEntry {
 }
 
 // Ordered by tag number, uses actual useful values
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ConstantEntry{
     Utf8(String),
     Integer(i32),
@@ -68,20 +68,20 @@ pub enum ConstantEntry{
     Package(String)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum MemberKind {
     Field, Method, InterfaceMethod
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum DynamicReferenceType{
     GetField, GetStatic, PutField, PutStatic, InvokeVirtual, NewInvokeSpecial, InvokeStatic, InvokeSpecial
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct NameAndType{ pub name: String, pub descriptor: String }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MemberRef{ pub kind: MemberKind, pub owner_name: String, pub name_and_type: NameAndType }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Dynamic{ pub bootstrap: NameAndType, pub value: NameAndType }
 
 #[derive(Debug)]
@@ -193,7 +193,7 @@ pub struct ExceptionHandler{
 pub struct Code{
     pub max_stack: u16,
     pub max_locals: u16,
-    pub bytecode: Vec<Instruction>,
+    pub bytecode: Vec<(usize, Instruction)>,
     pub exception_handlers: Vec<ExceptionHandler>,
     pub attributes: Vec<Attribute>
 }
@@ -212,16 +212,20 @@ pub enum Instruction{
     ILoad(u8),
     LLoad(u8),
 
-    IInc,
+    IInc(u8, i8),
     IAdd,
-    ISub,
     LAdd,
+    ISub,
+    LSub,
 
     Goto(u32),
+    IfEq(u32),
     IfIcmpGe(u32),
 
-    L2I,
     I2L,
+    L2I,
 
-    IReturn
+    IReturn,
+    LReturn,
+    Return
 }

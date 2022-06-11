@@ -9,24 +9,24 @@ use super::jvalue::JObject;
 
 #[derive(Debug)]
 pub struct JRef{
-    heap_idx: usize
+    heap_idx: usize // used in `get`
 }
 
 // Heaps must be mutable so that they can be setup at runtime
 // RwLocks are used for threadsafe addition to heaps
-static mut heap_active: Option<RwLock<Vec<Arc<JObject>>>> = None;
-static mut heap_inactive: Option<RwLock<Vec<Arc<JObject>>>> = None;
+static mut HEAP_ACTIVE: Option<RwLock<Vec<Arc<JObject>>>> = None;
+static mut HEAP_INACTIVE: Option<RwLock<Vec<Arc<JObject>>>> = None;
 
 pub fn setup(){
     unsafe{
-        heap_active = Some(RwLock::new(Vec::new()));
-        heap_inactive = Some(RwLock::new(Vec::new()));
+        HEAP_ACTIVE = Some(RwLock::new(Vec::new()));
+        HEAP_INACTIVE = Some(RwLock::new(Vec::new()));
     }
 }
 
 pub fn add(obj: JObject) -> JRef{
     unsafe{
-        let rw = heap_active.as_ref().unwrap();
+        let rw = HEAP_ACTIVE.as_ref().unwrap();
         let true_heap = &mut *rw.write().unwrap();
         true_heap.push(Arc::new(obj));
         return JRef{ heap_idx: true_heap.len() };
@@ -35,7 +35,7 @@ pub fn add(obj: JObject) -> JRef{
 
 pub fn get(refs: &JRef) -> Arc<JObject>{
     unsafe{
-        let rw = heap_active.as_ref().unwrap();
+        let rw = HEAP_ACTIVE.as_ref().unwrap();
         let true_heap = rw.read().unwrap();
         return true_heap[refs.heap_idx].clone();
     }

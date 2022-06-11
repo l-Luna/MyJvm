@@ -25,6 +25,8 @@ pub fn bit_set(flags: u16, flag: u16) -> bool{
 
 // Bytecode instructions
 // Roughly the same order as classfile_structs::Instruction
+pub const OP_NOP: u8                    = 0;
+
 pub const OP_ICONST_M1: u8              = 2;
 pub const OP_ICONST_0: u8               = 3;
 pub const OP_ICONST_1: u8               = 4;
@@ -34,14 +36,52 @@ pub const OP_ICONST_4: u8               = 7;
 pub const OP_ICONST_5: u8               = 8;
 pub const OP_BIPUSH: u8                 = 16;
 
+pub const OP_LCONST_0: u8               = 9;
+pub const OP_LCONST_1: u8               = 10;
+
 pub const OP_LDC: u8                    = 18;
 pub const OP_LDC_W: u8                  = 19;
 pub const OP_LDC2_W: u8                 = 20;
 
+pub const OP_ISTORE: u8                 = 54;
+pub const OP_LSTORE: u8                 = 55;
+
+pub const OP_ISTORE_0: u8                 = 59;
+pub const OP_ISTORE_1: u8                 = 60;
+pub const OP_ISTORE_2: u8                 = 61;
+pub const OP_ISTORE_3: u8                 = 62;
+
+pub const OP_LSTORE_0: u8                 = 63;
+pub const OP_LSTORE_1: u8                 = 64;
+pub const OP_LSTORE_2: u8                 = 65;
+pub const OP_LSTORE_3: u8                 = 66;
+
+pub const OP_ILOAD: u8                   = 21;
+pub const OP_LLOAD: u8                   = 22;
+
+pub const OP_ILOAD_0: u8                 = 26;
+pub const OP_ILOAD_1: u8                 = 27;
+pub const OP_ILOAD_2: u8                 = 28;
+pub const OP_ILOAD_3: u8                 = 29;
+
+pub const OP_LLOAD_0: u8                 = 30;
+pub const OP_LLOAD_1: u8                 = 31;
+pub const OP_LLOAD_2: u8                 = 32;
+pub const OP_LLOAD_3: u8                 = 33;
+
 pub const OP_IADD: u8                   = 96;
+pub const OP_LADD: u8                   = 97;
+pub const OP_ISUB: u8                   = 100;
+pub const OP_LSUB: u8                   = 101;
 
 pub const OP_GOTO: u8                   = 167;
 pub const OP_GOTO_W: u8                 = 200;
+pub const OP_IF_EQ: u8                  = 153;
+pub const OP_IF_NE: u8                  = 154;
+pub const OP_IF_LT: u8                  = 155;
+pub const OP_IF_GE: u8                  = 156;
+pub const OP_IF_GT: u8                  = 157;
+pub const OP_IF_LE: u8                  = 158;
 pub const OP_IF_ICMPEQ: u8              = 159;
 pub const OP_IF_ICMPNE: u8              = 160;
 pub const OP_IF_ICMPLT: u8              = 161;
@@ -49,5 +89,10 @@ pub const OP_IF_ICMPGE: u8              = 162;
 pub const OP_IF_ICMPGT: u8              = 163;
 pub const OP_IF_ICMPLE: u8              = 164;
 
+pub const OP_I2L: u8                    = 133;
+pub const OP_L2I: u8                    = 136;
+
 pub const OP_IRETURN: u8                = 172;
+pub const OP_LRETURN: u8                = 173;
+pub const OP_RETURN: u8                 = 177;
 // ...

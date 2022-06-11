@@ -335,19 +335,148 @@ fn parse_exception_handler(attr: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) 
     }
 }
 
-fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Result<Vec<Instruction>, &'static str>{
-    let mut result: Vec<Instruction> = Vec::new();
+fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Result<Vec<(usize, Instruction)>, &'static str>{
+    let mut result: Vec<(usize, Instruction)> = Vec::new();
+    let start_len = bytecode.len();
     while bytecode.len() > 0 {
+        let idx = start_len - bytecode.len();
         let opcode = bytecode.remove(0);
         match opcode{
+            constants::OP_NOP => { /* no-op */ },
+            
+            constants::OP_ICONST_M1 => result.push((idx, Instruction::IConst(-1))),
+            constants::OP_ICONST_0 => result.push((idx, Instruction::IConst(0))),
+            constants::OP_ICONST_1 => result.push((idx, Instruction::IConst(1))),
+            constants::OP_ICONST_2 => result.push((idx, Instruction::IConst(2))),
+            constants::OP_ICONST_3 => result.push((idx, Instruction::IConst(3))),
+            constants::OP_ICONST_4 => result.push((idx, Instruction::IConst(4))),
+            constants::OP_ICONST_5 => result.push((idx, Instruction::IConst(5))),
             constants::OP_BIPUSH => {
                 if let Some(it) = next_sbyte(bytecode){
-                    result.push(Instruction::IConst(it));
+                    result.push((idx, Instruction::IConst(it)));
                 }else{
                     return Err("Missing byte operand of bipush");
                 }
             }
-            constants::OP_IRETURN => result.push(Instruction::IReturn),
+
+            constants::OP_LCONST_0 => result.push((idx, Instruction::LConst(0))),
+            constants::OP_LCONST_1 => result.push((idx, Instruction::LConst(1))),
+
+            // TODO: check constant types
+            constants::OP_LDC => {
+                if let Some(it) = next_byte(bytecode){
+                    let c = &const_pool[it as usize - 1];
+                    result.push((idx, Instruction::Ldc(c.clone())));
+                }else{
+                    return Err("Missing byte operand of ldc");
+                }
+            }
+            constants::OP_LDC_W => {
+                if let Some(it) = next_short(bytecode){
+                    let c = &const_pool[it as usize - 1];
+                    result.push((idx, Instruction::Ldc(c.clone())));
+                }else{
+                    return Err("Missing short operand of ldc_w");
+                }
+            }
+            constants::OP_LDC2_W => {
+                if let Some(it) = next_short(bytecode){
+                    let c = &const_pool[it as usize - 1];
+                    result.push((idx, Instruction::Ldc(c.clone())));
+                }else{
+                    return Err("Missing short operand of ldc_w");
+                }
+            }
+
+            constants::OP_ISTORE_0 => result.push((idx, Instruction::IStore(0))),
+            constants::OP_ISTORE_1 => result.push((idx, Instruction::IStore(1))),
+            constants::OP_ISTORE_2 => result.push((idx, Instruction::IStore(2))),
+            constants::OP_ISTORE_3 => result.push((idx, Instruction::IStore(3))),
+            constants::OP_ISTORE => {
+                if let Some(it) = next_byte(bytecode){
+                    result.push((idx, Instruction::IStore(it)));
+                }else{
+                    return Err("Missing byte operand of istore");
+                }
+            }
+
+            constants::OP_LSTORE_0 => result.push((idx, Instruction::LStore(0))),
+            constants::OP_LSTORE_1 => result.push((idx, Instruction::LStore(1))),
+            constants::OP_LSTORE_2 => result.push((idx, Instruction::LStore(2))),
+            constants::OP_LSTORE_3 => result.push((idx, Instruction::LStore(3))),
+            constants::OP_LSTORE => {
+                if let Some(it) = next_byte(bytecode){
+                    result.push((idx, Instruction::LStore(it)));
+                }else{
+                    return Err("Missing byte operand of lstore");
+                }
+            }
+
+            constants::OP_ILOAD_0 => result.push((idx, Instruction::ILoad(0))),
+            constants::OP_ILOAD_1 => result.push((idx, Instruction::ILoad(1))),
+            constants::OP_ILOAD_2 => result.push((idx, Instruction::ILoad(2))),
+            constants::OP_ILOAD_3 => result.push((idx, Instruction::ILoad(3))),
+            constants::OP_ILOAD => {
+                if let Some(it) = next_byte(bytecode){
+                    result.push((idx, Instruction::ILoad(it)));
+                }else{
+                    return Err("Missing byte operand of iload");
+                }
+            }
+
+            constants::OP_LLOAD_0 => result.push((idx, Instruction::LLoad(0))),
+            constants::OP_LLOAD_1 => result.push((idx, Instruction::LLoad(1))),
+            constants::OP_LLOAD_2 => result.push((idx, Instruction::LLoad(2))),
+            constants::OP_LLOAD_3 => result.push((idx, Instruction::LLoad(3))),
+            constants::OP_LLOAD => {
+                if let Some(it) = next_byte(bytecode){
+                    result.push((idx, Instruction::LLoad(it)));
+                }else{
+                    return Err("Missing byte operand of lload");
+                }
+            }
+
+            constants::OP_IADD => result.push((idx, Instruction::IAdd)),
+            constants::OP_LADD => result.push((idx, Instruction::LAdd)),
+            constants::OP_ISUB => result.push((idx, Instruction::ISub)),
+            constants::OP_LSUB => result.push((idx, Instruction::LSub)),
+
+            constants::OP_GOTO => {
+                if let Some(it) = next_short(bytecode){
+                    result.push((idx, Instruction::Goto(it as u32)));
+                }else{
+                    return Err("Missing short operand of goto");
+                }
+            }
+            constants::OP_GOTO_W => {
+                if let Some(it) = next_uint(bytecode){
+                    result.push((idx, Instruction::Goto(it)));
+                }else{
+                    return Err("Missing uint operand of goto_w");
+                }
+            }
+            constants::OP_IF_EQ => {
+                if let Some(it) = next_short(bytecode){
+                    result.push((idx, Instruction::IfEq(it as u32)));
+                }else{
+                    return Err("Missing short operand of ifeq");
+                }
+            }
+            constants::OP_IF_ICMPGE => {
+                if let Some(it) = next_short(bytecode){
+                    result.push((idx, Instruction::IfIcmpGe(it as u32)));
+                }else{
+                    return Err("Missing short operand of ifIicmpgt");
+                }
+            }
+
+            constants::OP_I2L => result.push((idx, Instruction::I2L)),
+            constants::OP_L2I => result.push((idx, Instruction::L2I)),
+
+            constants::OP_IRETURN => result.push((idx, Instruction::IReturn)),
+            constants::OP_LRETURN => result.push((idx, Instruction::LReturn)),
+            constants::OP_RETURN => result.push((idx, Instruction::Return)),
+
             other => {
                 //return Err("");
                 // TODO: error, once all valid opcodes are handled
