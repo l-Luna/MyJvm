@@ -1,3 +1,7 @@
+use std::ops::Deref;
+
+use super::heap::JRef;
+
 #[derive(Debug)]
 pub enum JValue{
     Int(i32), // and other int-likes
@@ -8,5 +12,10 @@ pub enum JValue{
     DoubleSecond,
     Void,
 
-    Reference // TODO
+    Reference(JRef)
+}
+
+#[derive(Debug)]
+pub struct JObject{
+    
 }
