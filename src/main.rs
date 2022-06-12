@@ -47,7 +47,7 @@ fn main() {
             // find code attribute
             for attribute in &m.attributes {
                 if let Code(c) = attribute {
-                    let u = runtime::interpreter::interpret(&m, vec![JValue::Int(0)], &c);
+                    let u = runtime::interpreter::interpret(&m, vec![JValue::Int(1)], &c);
                     match u{
                         Ok(u) => println!("{:?}", u),
                         Err(u) => panic!("oh no: {}", u)

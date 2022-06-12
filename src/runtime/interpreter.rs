@@ -72,16 +72,22 @@ pub fn interpret(method: &MethodInfo, args: Vec<JValue>, code: &Code) -> Result<
                 if target < 0{
                     panic!("Bad goto offset");
                 }
-                i = target as usize;
+                i = bytecode_idx_to_instr_idx(target as usize, code);
                 was_jump = true;
             },
-            Instruction::Goto(offset) => {
-                let target = (*idx as isize) + (*offset as isize);
-                if target < 0{
-                    panic!("Bad goto offset");
+            Instruction::IfEq(offset) => {
+                if let JValue::Int(value) = stack.remove(0){
+                    if value == 0{
+                        let target = (*idx as isize) + (*offset as isize);
+                        if target < 0{
+                            panic!("Bad goto offset");
+                        }
+                        i = bytecode_idx_to_instr_idx(target as usize, code);
+                        was_jump = true;
+                    }
+                }else{
+                    return Err("Tried to execute ifeq without int on top of stack");
                 }
-                i = target as usize;
-                was_jump = true;
             },
 
             Instruction::IReturn => {
@@ -111,3 +117,13 @@ pub fn interpret(method: &MethodInfo, args: Vec<JValue>, code: &Code) -> Result<
     return Err("Reached end of function without return!");
 }
 
+fn bytecode_idx_to_instr_idx(bytecode_idx: usize, code: &Code) -> usize{
+    let mut i = 0;
+    for (t_bidx, _) in &code.bytecode{
+        if *t_bidx == bytecode_idx{
+            return i;
+        }
+        i += 1;
+    }
+    panic!("invalid bytecode offset {}", bytecode_idx);
+}

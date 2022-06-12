@@ -1,4 +1,4 @@
-use std::{sync::{RwLock, Arc}, ops::Deref};
+use std::sync::{RwLock, Arc};
 
 use super::jvalue::JObject;
 
@@ -43,5 +43,7 @@ pub fn get(refs: &JRef) -> Arc<JObject>{
 
 pub fn gc(){
     // Starting from GC roots, find all objects in "active" and move to "inactive",
-    // Then swap and clear
+    // Then swap and clear.
+    // TODO: how do we update JRefs to match?
+    //   should I just use Arc directly? how to compare reachability that way?
 }
