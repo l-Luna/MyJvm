@@ -1,7 +1,7 @@
 #![feature(absolute_path)]
 #![feature(let_else)]
 #![feature(if_let_guard)]
-#![feature(box_syntax)]
+#![feature(let_chains)]
 
 use std::fs::File;
 use std::io::Read;

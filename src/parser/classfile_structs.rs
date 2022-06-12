@@ -203,14 +203,17 @@ pub struct Code{
 pub enum Instruction{
     IConst(i8), // includes iconst_x and bipush
     LConst(i8),
+    AConstNull,
 
     Ldc(ConstantEntry), // copy it here for now
 
     IStore(u8),
     LStore(u8),
+    AStore(u8),
 
     ILoad(u8),
     LLoad(u8),
+    ALoad(u8),
 
     IInc(u8, i8),
     IAdd,
@@ -227,5 +230,13 @@ pub enum Instruction{
 
     IReturn,
     LReturn,
-    Return
+    Return,
+
+    GetField(MemberRef),
+    PutField(MemberRef),
+
+    InvokeVirtual(MemberRef),
+    InvokeSpecial(MemberRef),
+    InvokeStatic(MemberRef),
+    InvokeInterface(MemberRef)
 }

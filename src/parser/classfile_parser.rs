@@ -343,6 +343,8 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
         let opcode = bytecode.remove(0);
         match opcode{
             constants::OP_NOP => { /* no-op */ },
+
+            constants::OP_ACONST_NULL => result.push((idx, Instruction::AConstNull)),
             
             constants::OP_ICONST_M1 => result.push((idx, Instruction::IConst(-1))),
             constants::OP_ICONST_0 => result.push((idx, Instruction::IConst(0))),
@@ -412,6 +414,18 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
                 }
             }
 
+            constants::OP_ASTORE_0 => result.push((idx, Instruction::AStore(0))),
+            constants::OP_ASTORE_1 => result.push((idx, Instruction::AStore(1))),
+            constants::OP_ASTORE_2 => result.push((idx, Instruction::AStore(2))),
+            constants::OP_ASTORE_3 => result.push((idx, Instruction::AStore(3))),
+            constants::OP_ASTORE => {
+                if let Some(it) = next_byte(bytecode){
+                    result.push((idx, Instruction::AStore(it)));
+                }else{
+                    return Err("Missing byte operand of astore");
+                }
+            }
+
             constants::OP_ILOAD_0 => result.push((idx, Instruction::ILoad(0))),
             constants::OP_ILOAD_1 => result.push((idx, Instruction::ILoad(1))),
             constants::OP_ILOAD_2 => result.push((idx, Instruction::ILoad(2))),
@@ -433,6 +447,27 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
                     result.push((idx, Instruction::LLoad(it)));
                 }else{
                     return Err("Missing byte operand of lload");
+                }
+            }
+
+            constants::OP_ALOAD_0 => result.push((idx, Instruction::ALoad(0))),
+            constants::OP_ALOAD_1 => result.push((idx, Instruction::ALoad(1))),
+            constants::OP_ALOAD_2 => result.push((idx, Instruction::ALoad(2))),
+            constants::OP_ALOAD_3 => result.push((idx, Instruction::ALoad(3))),
+            constants::OP_ALOAD => {
+                if let Some(it) = next_byte(bytecode){
+                    result.push((idx, Instruction::ALoad(it)));
+                }else{
+                    return Err("Missing byte operand of aload");
+                }
+            }
+
+            constants::OP_IINC => {
+                if let Some(target) = next_byte(bytecode)
+                && let Some(offset) = next_sbyte(bytecode){
+                    result.push((idx, Instruction::IInc(target, offset)));
+                }else{
+                    return Err("Missing byte operand(s) of iinc");
                 }
             }
 
@@ -462,7 +497,7 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
                     return Err("Missing short operand of ifeq");
                 }
             }
-            constants::OP_IF_ICMPGE => {
+            constants::OP_IF_ICMP_GE => {
                 if let Some(it) = next_sshort(bytecode){
                     result.push((idx, Instruction::IfIcmpGe(it as i32)));
                 }else{
@@ -476,6 +511,60 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
             constants::OP_IRETURN => result.push((idx, Instruction::IReturn)),
             constants::OP_LRETURN => result.push((idx, Instruction::LReturn)),
             constants::OP_RETURN => result.push((idx, Instruction::Return)),
+
+            // TODO: better validation, split instructions?
+            constants::OP_GET_STATIC |
+            constants::OP_GET_FIELD => {
+                if let Some(it) = next_short(bytecode)
+                && let ConstantEntry::MemberRef(m) = &const_pool[it as usize - 1]{
+                    result.push((idx, Instruction::GetField(m.clone())));
+                }else{
+                    return Err("Missing short operand of getstatic/getfield or invalid const pool index");
+                }
+            }
+            constants::OP_PUT_STATIC |
+            constants::OP_PUT_FIELD => {
+                if let Some(it) = next_short(bytecode)
+                && let ConstantEntry::MemberRef(m) = &const_pool[it as usize - 1]{
+                    result.push((idx, Instruction::PutField(m.clone())));
+                }else{
+                    return Err("Missing short operand of putstatic/putfield or invalid const pool index");
+                }
+            }
+
+            // TODO: cleanup (this whole thing :p)
+            constants::OP_INVOKE_VIRTUAL => {
+                if let Some(it) = next_short(bytecode)
+                && let ConstantEntry::MemberRef(m) = &const_pool[it as usize - 1]{
+                    result.push((idx, Instruction::InvokeVirtual(m.clone())));
+                }else{
+                    return Err("Missing short operand of invokevirtual or invalid const pool index");
+                }
+            }
+            constants::OP_INVOKE_SPECIAL => {
+                if let Some(it) = next_short(bytecode)
+                && let ConstantEntry::MemberRef(m) = &const_pool[it as usize - 1]{
+                    result.push((idx, Instruction::InvokeVirtual(m.clone())));
+                }else{
+                    return Err("Missing short operand of invokespecial or invalid const pool index");
+                }
+            }
+            constants::OP_INVOKE_STATIC => {
+                if let Some(it) = next_short(bytecode)
+                && let ConstantEntry::MemberRef(m) = &const_pool[it as usize - 1]{
+                    result.push((idx, Instruction::InvokeVirtual(m.clone())));
+                }else{
+                    return Err("Missing short operand of invokestatic or invalid const pool index");
+                }
+            }
+            constants::OP_INVOKE_INTERFACE => {
+                if let Some(it) = next_short(bytecode)
+                && let ConstantEntry::MemberRef(m) = &const_pool[it as usize - 1]{
+                    result.push((idx, Instruction::InvokeVirtual(m.clone())));
+                }else{
+                    return Err("Missing short operand of invokeinterface or invalid const pool index");
+                }
+            }
 
             other => {
                 //return Err("");
