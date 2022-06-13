@@ -16,19 +16,20 @@ pub enum JValue{
 
 #[derive(Debug)]
 pub struct JObject{
-    class: ClassRef,
-    fields: HashMap<String, JValue>
+    pub class: ClassRef,
+    pub fields: HashMap<String, JValue>
 }
 
 impl JValue{
-    fn assignable_to(&self, to: ClassRef) -> bool{
+    pub fn assignable_to(&self, to: ClassRef) -> bool{
         return match self{
             JValue::Int(_) => vec!["Z", "B", "S", "C", "I"].contains(&to.descriptor.as_str()),
             JValue::Long(_) => to.descriptor == "J",
             JValue::Float(_) => to.descriptor == "F",
             JValue::Double(_) => to.descriptor == "D",
             JValue::Second => false,
-            JValue::Reference(_) => todo!(),
+            JValue::Reference(None) => to.descriptor.len() > 0, // any non-primitive
+            JValue::Reference(Some(r)) => r.deref().class.assignable_to(&to),
         }
     }
 }

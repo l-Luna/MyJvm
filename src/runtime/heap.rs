@@ -4,6 +4,10 @@ use crate::constants;
 
 use super::{jvalue::JObject, class::{ClassRef, Class}, classes};
 
+// TODO: use weak references everywhere (esp JRef and ClassRef)
+// and only keep objects and classes alive via the heaps
+// since those are GC'd and cycles naturally form goddamn everywhere
+
 // Heap shared between threads.
 
 // References are indexes into the "active" list.
@@ -12,6 +16,12 @@ use super::{jvalue::JObject, class::{ClassRef, Class}, classes};
 #[derive(Debug, Clone, Copy)]
 pub struct JRef{
     heap_idx: usize // used in `get`
+}
+
+impl JRef {
+    pub fn deref(&self) -> Arc<JObject>{
+        return get(self);
+    }
 }
 
 // Heaps must be mutable so that they can be setup at runtime
