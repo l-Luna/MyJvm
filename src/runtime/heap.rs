@@ -2,7 +2,7 @@ use std::{sync::{RwLock, Arc}, collections::HashMap};
 
 use crate::constants;
 
-use super::{jvalue::JObject, class::ClassRef};
+use super::{jvalue::JObject, class::{ClassRef, Class}, classes};
 
 // Heap shared between threads.
 
@@ -26,6 +26,10 @@ pub fn setup(){
         HEAP_ACTIVE = Some(RwLock::new(Vec::new()));
         HEAP_INACTIVE = Some(RwLock::new(Vec::new()));
         LOADED_CLASSES = Some(RwLock::new(HashMap::new()));
+    }
+
+    for primitive in classes::create_primitive_classes(){
+        add_bt_class(primitive);
     }
 }
 
@@ -56,6 +60,24 @@ pub fn gc(){
 }
 
 // Class handling
+
+pub fn add_class(class: Class, loader_name: String){
+    unsafe{
+        let rw = LOADED_CLASSES.as_ref().unwrap();
+        let loaded_classes = &mut *rw.write().unwrap();
+        let loader_map = if loaded_classes.contains_key(&loader_name){
+            loaded_classes.get_mut(&loader_name).unwrap()
+        }else{
+            loaded_classes.insert(loader_name.clone(), HashMap::new());
+            loaded_classes.get_mut(&loader_name).unwrap()
+        };
+        loader_map.insert(class.name.clone(), Arc::new(class));
+    }
+}
+
+pub fn add_bt_class(class: Class){
+    add_class(class, constants::BOOTSTRAP_LOADER_NAME.to_owned());
+}
 
 pub fn classes_by_loader(loader_name: String) -> Vec<ClassRef>{
     unsafe{
