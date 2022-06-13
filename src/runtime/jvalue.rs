@@ -1,6 +1,6 @@
-use std::{collections::HashMap, ops::RangeBounds};
+use std::collections::HashMap;
 
-use super::{heap::JRef, class::{ClassRef, Class}};
+use super::{heap::JRef, class::ClassRef};
 
 #[derive(Debug, Clone, Copy)]
 pub enum JValue{

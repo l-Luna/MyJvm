@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use crate::parser::{classfile_structs::{Code, Classfile}, classfile_parser};
+use crate::parser::{classfile_structs::{Code, Classfile, NameAndType}, classfile_parser};
 use super::{classes::{ClassLoader, self}, jvalue::JValue};
 
 #[derive(Debug)]
@@ -29,6 +29,18 @@ impl Class{
         }
         return false;
     }
+
+    pub fn virtual_method(&self, target: NameAndType) -> Option<&Method>{
+        for method in &self.methods{
+            if method.name == target.name && method.descriptor() == target.descriptor {
+                return Some(method);
+            }
+        }
+        if let Some(c) = &self.super_class{
+            return c.virtual_method(target);
+        }
+        return None;
+    }
 }
 
 pub type ClassRef = Arc<Class>;
@@ -42,11 +54,24 @@ pub struct Field{
 
 #[derive(Debug)]
 pub struct Method{
-    name: String,
-    parameters: Vec<ClassRef>,
-    return_type: ClassRef,
-    visibility: Visibility,
-    code: MethodImpl
+    pub name: String,
+    pub parameters: Vec<ClassRef>,
+    pub return_type: ClassRef,
+    pub visibility: Visibility,
+    pub code: MethodImpl
+}
+
+impl Method {
+    pub fn descriptor(&self) -> String{
+        let mut desc = String::with_capacity(self.parameters.len() + 2);
+        desc.push_str("(");
+        for param in &self.parameters{
+            desc.push_str(&param.descriptor);
+        }
+        desc.push_str(")");
+        desc.push_str(&self.return_type.descriptor);
+        return desc;
+    }
 }
 
 #[derive(Debug)]
