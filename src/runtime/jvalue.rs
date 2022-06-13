@@ -1,4 +1,4 @@
-use super::{heap::JRef, classloader::ClassLoader};
+use super::{heap::JRef, class::ClassRef};
 
 #[derive(Debug, Clone, Copy)]
 pub enum JValue{
@@ -14,12 +14,5 @@ pub enum JValue{
 
 #[derive(Debug)]
 pub struct JObject{
-    
-}
-
-#[derive(Debug)]
-pub struct Class<'loader>{
-    name: String,           // a.b.C
-    descriptor: String,     // La/b/C; or I or [I...
-    loader: &'loader dyn ClassLoader,
+    class: ClassRef
 }

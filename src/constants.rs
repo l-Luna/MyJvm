@@ -121,3 +121,6 @@ pub const OP_INVOKE_SPECIAL: u8         = 183;
 pub const OP_INVOKE_STATIC: u8          = 184;
 pub const OP_INVOKE_INTERFACE: u8       = 185;
 // ...
+
+// Misc
+pub const BOOTSTRAP_LOADER_NAME: &str   = "java.lang.ClassLoader";
