@@ -6,10 +6,20 @@ use super::{classes::{ClassLoader, self}, jvalue::JValue};
 pub struct Class{
     pub name: String,           // a.b.C
     pub descriptor: String,     // La/b/C; or I or [I...
+    pub super_class: Option<ClassRef>, // None for Object and primitives
+    pub interfaces: Vec<ClassRef>,
     pub loader_name: String,
     pub instance_fields: Vec<Field>,
     pub static_fields: Vec<(Field, JValue)>,
     pub methods: Vec<Method>
+}
+
+impl Class{
+    pub fn assignable_to(&self, to: ClassRef) -> bool{
+        if self.name == to.name{
+            return true;
+        }
+    }
 }
 
 pub type ClassRef = Arc<Class>;
@@ -17,7 +27,7 @@ pub type ClassRef = Arc<Class>;
 #[derive(Debug)]
 pub struct Field{
     name: String,
-    type_class: ClassRef,
+    type_class: ClassRef, // TODO: does a field of the same type as the class create cycles?
     visibility: Visibility
 }
 
@@ -64,7 +74,9 @@ pub fn classfile_to_class(classfile: Classfile, loader: Arc<dyn ClassLoader>) ->
         loader_name: loader.name(),
         instance_fields: vec![],
         static_fields: vec![],
-        methods: vec![]
+        methods: vec![],
+        super_class: None,
+        interfaces: vec![],
     });
 }
 

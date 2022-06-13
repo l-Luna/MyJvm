@@ -75,6 +75,8 @@ fn primitive_class(template: (&str, &str)) -> Class{
         loader_name: constants::BOOTSTRAP_LOADER_NAME.to_owned(),
         instance_fields: vec![],
         static_fields: vec![],
-        methods: vec![]
+        methods: vec![],
+        super_class: None,
+        interfaces: vec![],
     };
 }

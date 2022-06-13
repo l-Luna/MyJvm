@@ -13,6 +13,10 @@ pub fn interpret(method: &MethodInfo, args: Vec<JValue>, code: &Code) -> Result<
         let mut was_jump = false;
         let (idx, instr) = code.bytecode.get(i).expect("in range");
         match instr {
+            Instruction::AConstNull => {
+                stack.insert(0, JValue::Reference(None));
+            },
+
             Instruction::IConst(it) => {
                 stack.insert(0, JValue::Int(*it as i32));
             },
@@ -50,6 +54,15 @@ pub fn interpret(method: &MethodInfo, args: Vec<JValue>, code: &Code) -> Result<
                     return Err("Tried to execute lstore without long on top of stack");
                 }
             },
+            Instruction::AStore(at) => {
+                if let Some(JValue::Reference(value)) = stack.get(0){
+                    let at = *at as usize;
+                    locals = locals.splice(at..at+1, [Some(JValue::Reference(*value))]).collect();
+                    stack.remove(0);
+                }else{
+                    return Err("Tried to execute astore without reference on top of stack");
+                }
+            },
 
             Instruction::ILoad(at) => {
                 if let Some(Some(JValue::Int(value))) = locals.get(*at as usize){
@@ -64,6 +77,13 @@ pub fn interpret(method: &MethodInfo, args: Vec<JValue>, code: &Code) -> Result<
                     stack.insert(1, JValue::Second);
                 }else{
                     return Err("Tried to execute lload without long at local variable index");
+                }
+            },
+            Instruction::ALoad(at) => {
+                if let Some(Some(JValue::Reference(value))) = locals.get(*at as usize){
+                    stack.insert(0, JValue::Reference(*value));
+                }else{
+                    return Err("Tried to execute aload without reference at local variable index");
                 }
             },
 
