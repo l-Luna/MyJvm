@@ -30,7 +30,7 @@ impl Class{
         return false;
     }
 
-    pub fn virtual_method(&self, target: NameAndType) -> Option<&Method>{
+    pub fn virtual_method(&self, target: &NameAndType) -> Option<&Method>{
         for method in &self.methods{
             if method.name == target.name && method.descriptor() == target.descriptor {
                 return Some(method);
@@ -38,6 +38,25 @@ impl Class{
         }
         if let Some(c) = &self.super_class{
             return c.virtual_method(target);
+        }
+        return None;
+    }
+
+    pub fn interface_method(&self, target: &NameAndType) -> Option<&Method>{
+        for method in &self.methods{
+            if method.name == target.name && method.descriptor() == target.descriptor {
+                return Some(method);
+            }
+        }
+        if let Some(c) = &self.super_class{
+            if let Some(m) = c.interface_method(target){
+                return Some(m);
+            }
+        }
+        for interface in &self.interfaces{
+            if let Some(m) = interface.interface_method(target){
+                return Some(m);
+            }
         }
         return None;
     }
