@@ -57,35 +57,21 @@ impl<'a> std::fmt::Debug for dyn ClassLoader + 'a{
 
 pub fn create_primitive_classes() -> Vec<Class>{
     return vec![
-        BOOL,
-        BYTE,
-        SHORT,
-        INT,
-        CHAR,
-        LONG,
-        FLOAT,
-        DOUBLE
+        ( "boolean", "Z" ),
+        ( "byte", "B" ),
+        ( "short", "S" ),
+        ( "int", "I" ),
+        ( "char", "C" ),
+        ( "long", "J" ),
+        ( "float", "F" ),
+        ( "double", "D" )
     ].into_iter().map(primitive_class).collect();
 }
 
-struct PrimitiveTemplate{
-    name: &'static str,
-    desc: &'static str,
-}
-
-const BOOL: PrimitiveTemplate = PrimitiveTemplate{ name: "boolean", desc: "Z" };
-const BYTE: PrimitiveTemplate = PrimitiveTemplate{ name: "byte", desc: "B" };
-const SHORT: PrimitiveTemplate = PrimitiveTemplate{ name: "short", desc: "S" };
-const INT: PrimitiveTemplate = PrimitiveTemplate{ name: "int", desc: "I" };
-const CHAR: PrimitiveTemplate = PrimitiveTemplate{ name: "char", desc: "C" };
-const LONG: PrimitiveTemplate = PrimitiveTemplate{ name: "long", desc: "J" };
-const FLOAT: PrimitiveTemplate = PrimitiveTemplate{ name: "float", desc: "F" };
-const DOUBLE: PrimitiveTemplate = PrimitiveTemplate{ name: "double", desc: "D" };
-
-fn primitive_class(template: PrimitiveTemplate) -> Class{
+fn primitive_class(template: (&str, &str)) -> Class{
     return Class{
-        name: template.name.to_owned(),
-        descriptor: template.desc.to_owned(),
+        name: template.0.to_owned(),
+        descriptor: template.1.to_owned(),
         loader_name: constants::BOOTSTRAP_LOADER_NAME.to_owned(),
         instance_fields: vec![],
         static_fields: vec![],
