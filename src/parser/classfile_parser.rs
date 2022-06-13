@@ -1,7 +1,7 @@
 use super::classfile_structs::*;
 use crate::constants;
 
-pub fn parse(file: &mut Vec<u8>) -> Result<Classfile, &str>{
+pub fn parse(file: &mut Vec<u8>) -> Result<Classfile, &'static str>{
     if !expect_int(file, 0xCAFEBABE){
         return Err("Missing magic number!")
     }

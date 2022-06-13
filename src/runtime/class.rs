@@ -54,12 +54,12 @@ pub fn load_class(classname: String, loader: Arc<dyn ClassLoader>) -> Result<Cla
 // Links the classfile into a class, ascribing it to the given classloader.
 pub fn classfile_to_class(classfile: Classfile, loader: Arc<dyn ClassLoader>) -> Result<Class, &'static str>{
     return Ok(Class{
-        name: binary_to_fq_name(classfile.name),
-        descriptor: format!("L{};", classfile.name),
+        name: binary_to_fq_name(classfile.name.clone()),
+        descriptor: format!("L{};", classfile.name.clone()),
         loader_name: loader.name(),
-        instance_fields: (),
-        static_fields: (),
-        methods: ()
+        instance_fields: vec![],
+        static_fields: vec![],
+        methods: vec![]
     });
 }
 
