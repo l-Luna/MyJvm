@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use crate::parser::{classfile_structs::{Code, Classfile, NameAndType}, classfile_parser};
+use crate::parser::{classfile_structs::{Code, Classfile, NameAndType, FieldInfo, MethodInfo}, classfile_parser};
 use super::{classes::{ClassLoader, self}, jvalue::JValue};
 
 #[derive(Debug)]
@@ -65,30 +65,47 @@ impl Class{
 pub type ClassRef = Arc<Class>;
 
 #[derive(Debug)]
+pub enum MaybeClass{
+    Class(ClassRef),
+    Unloaded(String)
+}
+
+#[derive(Debug)]
 pub struct Field{
-    name: String,
-    type_class: ClassRef, // TODO: does a field of the same type as the class create cycles?
-    visibility: Visibility
+    pub name: String,
+    pub type_class: MaybeClass, // TODO: does a field of the same type as the class create cycles?
+    pub visibility: Visibility,
+    pub is_static: bool
 }
 
 #[derive(Debug)]
 pub struct Method{
     pub name: String,
-    pub parameters: Vec<ClassRef>,
-    pub return_type: ClassRef,
+    pub parameters: Vec<MaybeClass>,
+    pub return_type: MaybeClass,
     pub visibility: Visibility,
+    pub is_static: bool,
     pub code: MethodImpl
 }
 
-impl Method {
+impl MaybeClass{
+    pub fn descriptor(&self) -> String{
+        return match self{
+            MaybeClass::Unloaded(d) => d.clone(),
+            MaybeClass::Class(c) => c.descriptor.clone(),
+        };
+    }
+}
+
+impl Method{
     pub fn descriptor(&self) -> String{
         let mut desc = String::with_capacity(self.parameters.len() + 2);
         desc.push_str("(");
         for param in &self.parameters{
-            desc.push_str(&param.descriptor);
+            desc.push_str(&param.descriptor());
         }
         desc.push_str(")");
-        desc.push_str(&self.return_type.descriptor);
+        desc.push_str(&self.return_type.descriptor());
         return desc;
     }
 }
@@ -116,17 +133,34 @@ pub fn load_class(classname: String) -> Result<Class, &'static str>{
 
 /// Loads and links the class with the given name, provided by the given classloader.
 pub fn load_class_with(classname: String, loader: Arc<dyn ClassLoader>) -> Result<Class, &'static str>{
-    return classfile_to_class(classfile_parser::parse(&mut loader.load(&classname))?, loader);
+    return link_class(classfile_parser::parse(&mut loader.load(&classname))?, loader);
 }
 
-// Links the classfile into a class, ascribing it to the given classloader.
-pub fn classfile_to_class(classfile: Classfile, loader: Arc<dyn ClassLoader>) -> Result<Class, &'static str>{
+/// Links the classfile into a class, ascribing it to the given classloader.
+pub fn link_class(classfile: Classfile, loader: Arc<dyn ClassLoader>) -> Result<Class, &'static str>{
+    let all_fields: Vec<_> = classfile.fields.into_iter()
+        .map(|f| link_field(f, &loader))
+        .collect();
+    let mut instance_fields = Vec::new();
+    let mut static_fields = Vec::new();
+    for f in all_fields{
+        let f = f?;
+        if f.is_static{
+            static_fields.push(f);
+        }else{
+            instance_fields.push(f);
+        }
+    }
+    let static_fields = static_fields.into_iter()
+        .map(|f| (JValue::default_value_for(&f.type_class.descriptor()), f))
+        .map(|(a, b)| (b, a)) // :3
+        .collect();
     return Ok(Class{
         name: binary_to_fq_name(classfile.name.clone()),
         descriptor: format!("L{};", classfile.name.clone()),
         loader_name: loader.name(),
-        instance_fields: vec![],
-        static_fields: vec![],
+        instance_fields,
+        static_fields,
         methods: vec![],
         super_class: None,
         interfaces: vec![],
@@ -137,3 +171,10 @@ fn binary_to_fq_name(binary_name: String) -> String{
     return binary_name.replace("/", ".");
 }
 
+fn link_field(field: FieldInfo, loader: &Arc<dyn ClassLoader>) -> Result<Field, &'static str>{
+    Err("no")
+}
+
+fn link_method(method: MethodInfo, loader: &Arc<dyn ClassLoader>) -> Result<Method, &'static str>{
+    Err("no")
+}

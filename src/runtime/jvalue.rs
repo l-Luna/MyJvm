@@ -32,4 +32,17 @@ impl JValue{
             JValue::Reference(Some(r)) => r.deref().class.assignable_to(&to),
         }
     }
+
+    pub fn default_value_for(desc: &str) -> JValue{
+        if desc.starts_with("L"){
+            return JValue::Reference(None);
+        }
+        return match desc{
+            "Z" | "B" | "S" | "C" | "I" => JValue::Int(0),
+            "J" => JValue::Long(0),
+            "F" => JValue::Float(0.0),
+            "D" => JValue::Double(0.0),
+            _ => panic!("Tried to get default value of invalid descriptor")
+        };
+    }
 }
