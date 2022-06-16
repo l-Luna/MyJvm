@@ -2,7 +2,7 @@ use std::{sync::{RwLock, Arc}, collections::HashMap, hash::Hash};
 
 use crate::{constants, parser::classfile_structs::Classfile};
 
-use super::{jvalue::JObject, class::{ClassRef, Class}, classes};
+use super::{jvalue::JObject, class::{ClassRef, Class, MaybeClass}, classes::{self, ClassLoader}};
 
 // TODO: use weak references everywhere (esp JRef and ClassRef)
 // and only keep objects and classes alive via the heaps
@@ -112,6 +112,16 @@ pub fn add_bt_class(class: Class){
 // Returns the class with the given name loaded by the bootstrap classloader.
 pub fn bt_class_by_name(name: String) -> Option<ClassRef>{
     return class_by_name(constants::BOOTSTRAP_LOADER_NAME.to_owned(), name);
+}
+
+pub fn get_or_create_class(name: String, loader: Arc<dyn ClassLoader>) -> MaybeClass{
+    return match class_by_name(loader.name(), name.clone()){
+        Some(r) => MaybeClass::Class(r),
+        None => {
+            
+            MaybeClass::Unloaded(name)
+        }
+    };
 }
 
 // implementation
