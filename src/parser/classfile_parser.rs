@@ -35,14 +35,14 @@ pub fn parse(file: &mut Vec<u8>) -> Result<Classfile, &'static str>{
     let mut fields: Vec<FieldInfo> = Vec::with_capacity(field_count as usize);
     for _ in 0..field_count{
         fields.push(parse_member(file, &constants,
-            |flags, name, desc, attributes| FieldInfo { flags, name, desc, attributes })?);
+            |flags, name, desc, attributes| Ok(FieldInfo { flags, name, desc, attributes }))?);
     }
 
     let Some(method_count) = next_short(file) else { return Err("Missing method count"); };
     let mut methods: Vec<MethodInfo> = Vec::with_capacity(method_count as usize);
     for _ in 0..method_count{
         methods.push(parse_member(file, &constants,
-            |flags, name, desc, attributes| MethodInfo { flags, name, desc, attributes })?);
+            |flags, name, desc, attributes| Ok(MethodInfo { flags, name, desc: parse_descriptor(desc)?, attributes }))?);
     }
 
     let attributes = parse_attributes(file, &constants)?;
@@ -576,7 +576,7 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
     return Ok(result);
 }
 
-fn parse_member<T>(file: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>, constr: fn(u16, String, String, Vec<Attribute>) -> T) -> Result<T, &'static str>{
+fn parse_member<T>(file: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>, constr: fn(u16, String, String, Vec<Attribute>) -> Result<T, &'static str>) -> Result<T, &'static str>{
     let flags = next_short_err(file)?;
     
     let name_idx = next_short_err(file)?;
@@ -589,7 +589,32 @@ fn parse_member<T>(file: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>, constr: 
     
     let attrs = parse_attributes(file, &const_pool)?;
 
-    return Ok(constr(flags, name, desc, attrs));
+    return Ok(constr(flags, name, desc, attrs)?);
+}
+
+fn parse_descriptor(mut desc: String) -> Result<Vec<String>, &'static str>{
+    desc = desc.replace("(", ""); desc = desc.replace(")", ""); // don't *actually* matter
+    let mut buffer = Vec::new();
+    while desc.len() > 0{
+        let ch = desc.remove(0);
+        match ch{
+            'Z' | 'B' | 'S' | 'C' | 'I' | 'J' | 'F' | 'D' | 'V' => buffer.push(ch.to_string()),
+            'L' => {
+                let mut next = String::with_capacity(3);
+                next.push('L');
+                while desc.len() > 0{
+                    let ch = desc.remove(0);
+                    next.push(ch);
+                    if ch == ';'{
+                        break;
+                    }
+                }
+                buffer.push(next);
+            },
+            _ => return Err("Invalid descriptor item start")
+        }
+    };
+    return Ok(buffer);
 }
 
 // validation methods

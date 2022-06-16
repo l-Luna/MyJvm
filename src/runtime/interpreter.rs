@@ -126,6 +126,11 @@ pub fn interpret(method: &MethodInfo, args: Vec<JValue>, code: &Code) -> Result<
             },
             Instruction::Return => return Ok(None),
 
+            Instruction::InvokeVirtual(target) => {
+                // TODO: parse descriptors!
+                // pop all necessary values, resolve the class reference, and invoke!
+            }
+
             other => {
                 panic!("Unhandled instruction: {:?}", other);
             }

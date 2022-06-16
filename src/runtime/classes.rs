@@ -2,10 +2,6 @@ use crate::constants;
 
 use super::{class::{ClassRef, Class}, heap::{JRef, self}};
 
-// Primitive classes
-
-
-
 // Class loaders
 
 pub trait ClassLoader{
