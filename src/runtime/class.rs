@@ -127,17 +127,17 @@ pub enum MethodImpl{
 // TODO: detect circular hierarchies
 
 // Loads and links the class with the given name using the bootstrap classloader.
-pub fn load_class(classname: String) -> Result<Class, &'static str>{
+pub fn load_class(classname: String) -> Result<Class, String>{
     return load_class_with(classname, Arc::new(classes::BOOTSTRAP_LOADER));
 }
 
 /// Loads and links the class with the given name, provided by the given classloader.
-pub fn load_class_with(classname: String, loader: Arc<dyn ClassLoader>) -> Result<Class, &'static str>{
+pub fn load_class_with(classname: String, loader: Arc<dyn ClassLoader>) -> Result<Class, String>{
     return link_class(classfile_parser::parse(&mut loader.load(&classname))?, loader);
 }
 
 /// Links the classfile into a class, ascribing it to the given classloader.
-pub fn link_class(classfile: Classfile, loader: Arc<dyn ClassLoader>) -> Result<Class, &'static str>{
+pub fn link_class(classfile: Classfile, loader: Arc<dyn ClassLoader>) -> Result<Class, String>{
     let all_fields: Vec<_> = classfile.fields.into_iter()
         .map(|f| link_field(f, &loader))
         .collect();
@@ -183,14 +183,16 @@ fn flags_to_visibility(flags: u16) -> Visibility{
     }
 }
 
-fn desc_to_name(desc: String) -> Result<String, &'static str>{
+fn desc_to_name(desc: String) -> Result<String, String>{
     // TODO: just keep using descriptors?
     if desc.starts_with("L") && desc.ends_with(";"){
         return Ok(desc[1..desc.len() - 1].to_string());
+    }else if desc.starts_with("["){
+        return Ok(desc_to_name(desc[1..].to_owned())? + "[]");
     }else{
         // sure
         return match desc.chars().nth(0){
-            None => Err("Invalid descriptor of length 0"),
+            None => Err("Invalid descriptor of length 0".to_owned()),
             Some('Z') => Ok("boolean".to_owned()),
             Some('B') => Ok("byte".to_owned()),
             Some('S') => Ok("short".to_owned()),
@@ -200,12 +202,12 @@ fn desc_to_name(desc: String) -> Result<String, &'static str>{
             Some('F') => Ok("float".to_owned()),
             Some('D') => Ok("double".to_owned()),
             Some('V') => Ok("void".to_owned()),
-            Some(_) => Err("Invalid descriptor character")
+            Some(c) => Err(format!("Invalid descriptor character: {}", c))
         }
     }
 }
 
-fn link_field(field: FieldInfo, loader: &Arc<dyn ClassLoader>) -> Result<Field, &'static str>{
+fn link_field(field: FieldInfo, loader: &Arc<dyn ClassLoader>) -> Result<Field, String>{
     return Ok(Field{
         name: field.name,
         type_class: heap::get_or_create_class(desc_to_name(field.desc)?, loader)?,
@@ -214,7 +216,7 @@ fn link_field(field: FieldInfo, loader: &Arc<dyn ClassLoader>) -> Result<Field, 
     });
 }
 
-fn link_method(method: MethodInfo, loader: &Arc<dyn ClassLoader>) -> Result<Method, &'static str>{
+fn link_method(method: MethodInfo, loader: &Arc<dyn ClassLoader>) -> Result<Method, String>{
     let mut desc = method.desc.clone();
     let return_type = desc.remove(method.desc.len() - 1);
     let return_type = heap::get_or_create_class(desc_to_name(return_type)?, loader)?;

@@ -3,7 +3,20 @@ use runtime::jvalue::JValue;
 
 use crate::parser::classfile_structs::ConstantEntry;
 
-pub fn interpret(method: &MethodInfo, args: Vec<JValue>, code: &Code) -> Result<Option<JValue>, &'static str>{
+use super::class::Method;
+
+pub enum MethodResult{
+    FinishWithValue(JValue),
+    Finish,
+    Throw(JValue),
+    MachineError(&'static str)
+}
+
+pub fn execute(method: &Method, args: Vec<JValue>) -> MethodResult{
+    MethodResult::Finish
+}
+
+pub fn interpret(method: &MethodInfo, args: Vec<JValue>, code: &Code) -> MethodResult{
     let mut i: usize = 0;
     let mut stack: Vec<JValue> = Vec::with_capacity(code.max_stack as usize);
     let mut locals: Vec<Option<JValue>> = Vec::with_capacity(code.max_locals as usize);
@@ -42,7 +55,7 @@ pub fn interpret(method: &MethodInfo, args: Vec<JValue>, code: &Code) -> Result<
                     locals = locals.splice(at..at+1, [Some(JValue::Int(*value))]).collect();
                     stack.remove(0);
                 }else{
-                    return Err("Tried to execute istore without int on top of stack");
+                    return MethodResult::MachineError("Tried to execute istore without int on top of stack");
                 }
             },
             Instruction::LStore(at) => {
@@ -51,7 +64,7 @@ pub fn interpret(method: &MethodInfo, args: Vec<JValue>, code: &Code) -> Result<
                     locals = locals.splice(at..at+2, [Some(JValue::Long(*value)), Some(JValue::Second)]).collect();
                     stack.remove(0); stack.remove(0); // get rid of the Second too
                 }else{
-                    return Err("Tried to execute lstore without long on top of stack");
+                    return MethodResult::MachineError("Tried to execute lstore without long on top of stack");
                 }
             },
             Instruction::AStore(at) => {
@@ -60,7 +73,7 @@ pub fn interpret(method: &MethodInfo, args: Vec<JValue>, code: &Code) -> Result<
                     locals = locals.splice(at..at+1, [Some(JValue::Reference(*value))]).collect();
                     stack.remove(0);
                 }else{
-                    return Err("Tried to execute astore without reference on top of stack");
+                    return MethodResult::MachineError("Tried to execute astore without reference on top of stack");
                 }
             },
 
@@ -68,7 +81,7 @@ pub fn interpret(method: &MethodInfo, args: Vec<JValue>, code: &Code) -> Result<
                 if let Some(Some(JValue::Int(value))) = locals.get(*at as usize){
                     stack.insert(0, JValue::Int(*value));
                 }else{
-                    return Err("Tried to execute iload without int at local variable index");
+                    return MethodResult::MachineError("Tried to execute iload without int at local variable index");
                 }
             },
             Instruction::LLoad(at) => {
@@ -76,14 +89,14 @@ pub fn interpret(method: &MethodInfo, args: Vec<JValue>, code: &Code) -> Result<
                     stack.insert(0, JValue::Long(*value));
                     stack.insert(1, JValue::Second);
                 }else{
-                    return Err("Tried to execute lload without long at local variable index");
+                    return MethodResult::MachineError("Tried to execute lload without long at local variable index");
                 }
             },
             Instruction::ALoad(at) => {
                 if let Some(Some(JValue::Reference(value))) = locals.get(*at as usize){
                     stack.insert(0, JValue::Reference(*value));
                 }else{
-                    return Err("Tried to execute aload without reference at local variable index");
+                    return MethodResult::MachineError("Tried to execute aload without reference at local variable index");
                 }
             },
 
@@ -106,25 +119,25 @@ pub fn interpret(method: &MethodInfo, args: Vec<JValue>, code: &Code) -> Result<
                         was_jump = true;
                     }
                 }else{
-                    return Err("Tried to execute ifeq without int on top of stack");
+                    return MethodResult::MachineError("Tried to execute ifeq without int on top of stack");
                 }
             },
 
             Instruction::IReturn => {
                 return if let Some(JValue::Int(ret)) = stack.get(0){
-                    Ok(Some(JValue::Int(*ret)))
+                    MethodResult::FinishWithValue(JValue::Int(*ret))
                 }else{
-                    Err("Tried to execute ireturn without int on top of stack")
+                    MethodResult::MachineError("Tried to execute ireturn without int on top of stack")
                 }
             },
             Instruction::LReturn => {
                 return if let Some(JValue::Long(ret)) = stack.get(0){
-                    Ok(Some(JValue::Long(*ret)))
+                    MethodResult::FinishWithValue(JValue::Long(*ret))
                 }else{
-                    Err("Tried to execute lreturn without long on top of stack")
+                    MethodResult::MachineError("Tried to execute lreturn without long on top of stack")
                 }
             },
-            Instruction::Return => return Ok(None),
+            Instruction::Return => return MethodResult::Finish,
 
             Instruction::InvokeVirtual(target) => {
                 // TODO: parse descriptors!
@@ -139,7 +152,7 @@ pub fn interpret(method: &MethodInfo, args: Vec<JValue>, code: &Code) -> Result<
             i += 1;
         }
     }
-    return Err("Reached end of function without return!");
+    return MethodResult::MachineError("Reached end of function without return!");
 }
 
 fn bytecode_idx_to_instr_idx(bytecode_idx: usize, code: &Code) -> usize{

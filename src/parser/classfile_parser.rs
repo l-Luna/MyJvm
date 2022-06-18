@@ -1,44 +1,47 @@
 use super::classfile_structs::*;
 use crate::constants;
 
-pub fn parse(file: &mut Vec<u8>) -> Result<Classfile, &'static str>{
+pub fn parse(file: &mut Vec<u8>) -> Result<Classfile, String>{
     if !expect_int(file, 0xCAFEBABE){
-        return Err("Missing magic number!")
+        return Err("Missing magic number!".to_owned())
     }
 
-    let Some(minor_ver) = next_short(file) else { return Err("Missing minor version"); };
-    let Some(major_ver) = next_short(file) else { return Err("Missing major version"); };
+    let Some(minor_ver) = next_short(file) else { return Err("Missing minor version".to_owned()); };
+    let Some(major_ver) = next_short(file) else { return Err("Missing major version".to_owned()); };
 
-    let Some(raw_constants) = parse_constants(file) else { return Err("Unable to parse constant pool"); };
-    let Some(constants) = resolve_constants(raw_constants) else { return Err("Unable to resolve constant pool"); };
+    let Some(raw_constants) = parse_constants(file) else { return Err("Unable to parse constant pool".to_owned()); };
+    let Some(constants) = resolve_constants(raw_constants) else { return Err("Unable to resolve constant pool".to_owned()); };
 
-    let Some(flags) = next_short(file) else { return Err("Missing access flags"); };
+    let Some(flags) = next_short(file) else { return Err("Missing access flags".to_owned()); };
     check_class_flags(flags)?;
 
     let ConstantEntry::Class(this_class) = &constants[next_short_err(file)? as usize - 1]
-        else { return Err("Unable to resolve this class's name"); };
+        else { return Err("Unable to resolve this class's name".to_owned()); };
     let name: String = this_class.clone(); // own the string
 
     let ConstantEntry::Class(super_class) = &constants[next_short_err(file)? as usize - 1]
-        else { return Err("Unable to resolve super class's name"); };
+        else { return Err("Unable to resolve super class's name".to_owned()); };
     let super_class: String = super_class.clone(); // own the string
 
-    let Some(ifaces_count) = next_short(file) else { return Err("Missing interfaces count"); };
+    let Some(ifaces_count) = next_short(file) else { return Err("Missing interfaces count".to_owned()); };
     let mut interfaces: Vec<String> = Vec::with_capacity(ifaces_count as usize);
     for _ in 0..ifaces_count{
-        let ConstantEntry::Utf8(interface) = &constants[next_short_err(file)? as usize - 1]
-            else { return Err("Unable to resolve interface name"); };
+        let ConstantEntry::Class(interface) = &constants[next_short_err(file)? as usize - 1]
+            else {
+                println!("{:?}", constants[next_short_err(file)? as usize - 1]);
+                return Err("Unable to resolve interface name".to_owned());
+            };
         interfaces.push(interface.clone());
     }
 
-    let Some(field_count) = next_short(file) else { return Err("Missing field count"); };
+    let Some(field_count) = next_short(file) else { return Err("Missing field count".to_owned()); };
     let mut fields: Vec<FieldInfo> = Vec::with_capacity(field_count as usize);
     for _ in 0..field_count{
         fields.push(parse_member(file, &constants,
             |flags, name, desc, attributes| Ok(FieldInfo { flags, name, desc, attributes }))?);
     }
 
-    let Some(method_count) = next_short(file) else { return Err("Missing method count"); };
+    let Some(method_count) = next_short(file) else { return Err("Missing method count".to_owned()); };
     let mut methods: Vec<MethodInfo> = Vec::with_capacity(method_count as usize);
     for _ in 0..method_count{
         methods.push(parse_member(file, &constants,
@@ -248,29 +251,29 @@ fn dyn_ref_index_to_type(idx: &u8) -> Option<DynamicReferenceType>{
     }
 }
 
-fn parse_attributes(file: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Result<Vec<Attribute>, &'static str>{
-    let Some(count) = next_short(file) else { return Err("Missing attribute count"); };
+fn parse_attributes(file: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Result<Vec<Attribute>, String>{
+    let Some(count) = next_short(file) else { return Err("Missing attribute count".to_owned()); };
     let mut ret: Vec<Attribute> = Vec::with_capacity(count as usize);
     for _ in 0..count{
-        let Some(name_idx) = next_short(file) else { return Err("Missing attribute name"); };
+        let Some(name_idx) = next_short(file) else { return Err("Missing attribute name".to_owned()); };
         if let ConstantEntry::Utf8(name) = &const_pool[name_idx as usize - 1]{
-            let Some(size) = next_uint(file) else { return Err("Missing attribute size"); };
+            let Some(size) = next_uint(file) else { return Err("Missing attribute size".to_owned()); };
             let attr_data = next_vec(file, size as usize);
             if let Some(attr) = parse_attribute(attr_data, &const_pool, name)?{
                 ret.push(attr);
             }
         }else{
-            return Err("Attribute name index is invalid");
+            return Err("Attribute name index is invalid".to_owned());
         }
     }
     return Ok(ret);
 }
 
-fn parse_attribute(mut attr: Vec<u8>, const_pool: &Vec<ConstantEntry>, name: &String) -> Result<Option<Attribute>, &'static str>{
+fn parse_attribute(mut attr: Vec<u8>, const_pool: &Vec<ConstantEntry>, name: &String) -> Result<Option<Attribute>, String>{
     let name: &str = name;
     match name{
         "SourceFile" => {
-            let ConstantEntry::Utf8(source) = &const_pool[next_short_err(&mut attr)? as usize - 1] else { return Err("Invalid SourceFile name index") };
+            let ConstantEntry::Utf8(source) = &const_pool[next_short_err(&mut attr)? as usize - 1] else { return Err("Invalid SourceFile name index".to_owned()) };
             return Ok(Some(Attribute::SourceFile(source.clone())));
         }
         
@@ -309,7 +312,7 @@ fn parse_attribute(mut attr: Vec<u8>, const_pool: &Vec<ConstantEntry>, name: &St
     return Ok(None); // unknown attributes are valid
 } 
 
-fn parse_exception_handler(attr: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Result<ExceptionHandler, &'static str>{
+fn parse_exception_handler(attr: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Result<ExceptionHandler, String>{
     let start_idx = next_short_err(attr)?;
     let end_idx = next_short_err(attr)?;
     let handler_idx = next_short_err(attr)?;
@@ -330,12 +333,12 @@ fn parse_exception_handler(attr: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) 
                 catch_type: Some(exception_name.clone())
             })
         } else {
-            Err("Exception handler type name index is invalid")
+            Err("Exception handler type name index is invalid".to_owned())
         }
     }
 }
 
-fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Result<Vec<(usize, Instruction)>, &'static str>{
+fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Result<Vec<(usize, Instruction)>, String>{
     let mut result: Vec<(usize, Instruction)> = Vec::new();
     let start_len = bytecode.len();
     while bytecode.len() > 0 {
@@ -357,7 +360,7 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
                 if let Some(it) = next_sbyte(bytecode){
                     result.push((idx, Instruction::IConst(it)));
                 }else{
-                    return Err("Missing byte operand of bipush");
+                    return Err("Missing byte operand of bipush".to_owned());
                 }
             }
 
@@ -370,7 +373,7 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
                     let c = &const_pool[it as usize - 1];
                     result.push((idx, Instruction::Ldc(c.clone())));
                 }else{
-                    return Err("Missing byte operand of ldc");
+                    return Err("Missing byte operand of ldc".to_owned());
                 }
             }
             constants::OP_LDC_W => {
@@ -378,7 +381,7 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
                     let c = &const_pool[it as usize - 1];
                     result.push((idx, Instruction::Ldc(c.clone())));
                 }else{
-                    return Err("Missing short operand of ldc_w");
+                    return Err("Missing short operand of ldc_w".to_owned());
                 }
             }
             constants::OP_LDC2_W => {
@@ -386,7 +389,7 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
                     let c = &const_pool[it as usize - 1];
                     result.push((idx, Instruction::Ldc(c.clone())));
                 }else{
-                    return Err("Missing short operand of ldc_w");
+                    return Err("Missing short operand of ldc_w".to_owned());
                 }
             }
 
@@ -398,7 +401,7 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
                 if let Some(it) = next_byte(bytecode){
                     result.push((idx, Instruction::IStore(it)));
                 }else{
-                    return Err("Missing byte operand of istore");
+                    return Err("Missing byte operand of istore".to_owned());
                 }
             }
 
@@ -410,7 +413,7 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
                 if let Some(it) = next_byte(bytecode){
                     result.push((idx, Instruction::LStore(it)));
                 }else{
-                    return Err("Missing byte operand of lstore");
+                    return Err("Missing byte operand of lstore".to_owned());
                 }
             }
 
@@ -422,7 +425,7 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
                 if let Some(it) = next_byte(bytecode){
                     result.push((idx, Instruction::AStore(it)));
                 }else{
-                    return Err("Missing byte operand of astore");
+                    return Err("Missing byte operand of astore".to_owned());
                 }
             }
 
@@ -434,7 +437,7 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
                 if let Some(it) = next_byte(bytecode){
                     result.push((idx, Instruction::ILoad(it)));
                 }else{
-                    return Err("Missing byte operand of iload");
+                    return Err("Missing byte operand of iload".to_owned());
                 }
             }
 
@@ -446,7 +449,7 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
                 if let Some(it) = next_byte(bytecode){
                     result.push((idx, Instruction::LLoad(it)));
                 }else{
-                    return Err("Missing byte operand of lload");
+                    return Err("Missing byte operand of lload".to_owned());
                 }
             }
 
@@ -458,7 +461,7 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
                 if let Some(it) = next_byte(bytecode){
                     result.push((idx, Instruction::ALoad(it)));
                 }else{
-                    return Err("Missing byte operand of aload");
+                    return Err("Missing byte operand of aload".to_owned());
                 }
             }
 
@@ -467,7 +470,7 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
                 && let Some(offset) = next_sbyte(bytecode){
                     result.push((idx, Instruction::IInc(target, offset)));
                 }else{
-                    return Err("Missing byte operand(s) of iinc");
+                    return Err("Missing byte operand(s) of iinc".to_owned());
                 }
             }
 
@@ -480,28 +483,28 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
                 if let Some(it) = next_sshort(bytecode){
                     result.push((idx, Instruction::Goto(it as i32)));
                 }else{
-                    return Err("Missing short operand of goto");
+                    return Err("Missing short operand of goto".to_owned());
                 }
             }
             constants::OP_GOTO_W => {
                 if let Some(it) = next_int(bytecode){
                     result.push((idx, Instruction::Goto(it)));
                 }else{
-                    return Err("Missing uint operand of goto_w");
+                    return Err("Missing uint operand of goto_w".to_owned());
                 }
             }
             constants::OP_IF_EQ => {
                 if let Some(it) = next_sshort(bytecode){
                     result.push((idx, Instruction::IfEq(it as i32)));
                 }else{
-                    return Err("Missing short operand of ifeq");
+                    return Err("Missing short operand of ifeq".to_owned());
                 }
             }
             constants::OP_IF_ICMP_GE => {
                 if let Some(it) = next_sshort(bytecode){
                     result.push((idx, Instruction::IfIcmpGe(it as i32)));
                 }else{
-                    return Err("Missing short operand of ifIicmpgt");
+                    return Err("Missing short operand of ifIicmpgt".to_owned());
                 }
             }
 
@@ -519,7 +522,7 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
                 && let ConstantEntry::MemberRef(m) = &const_pool[it as usize - 1]{
                     result.push((idx, Instruction::GetField(m.clone())));
                 }else{
-                    return Err("Missing short operand of getstatic/getfield or invalid const pool index");
+                    return Err("Missing short operand of getstatic/getfield or invalid const pool index".to_owned());
                 }
             }
             constants::OP_PUT_STATIC |
@@ -528,7 +531,7 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
                 && let ConstantEntry::MemberRef(m) = &const_pool[it as usize - 1]{
                     result.push((idx, Instruction::PutField(m.clone())));
                 }else{
-                    return Err("Missing short operand of putstatic/putfield or invalid const pool index");
+                    return Err("Missing short operand of putstatic/putfield or invalid const pool index".to_owned());
                 }
             }
 
@@ -538,7 +541,7 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
                 && let ConstantEntry::MemberRef(m) = &const_pool[it as usize - 1]{
                     result.push((idx, Instruction::InvokeVirtual(m.clone())));
                 }else{
-                    return Err("Missing short operand of invokevirtual or invalid const pool index");
+                    return Err("Missing short operand of invokevirtual or invalid const pool index".to_owned());
                 }
             }
             constants::OP_INVOKE_SPECIAL => {
@@ -546,7 +549,7 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
                 && let ConstantEntry::MemberRef(m) = &const_pool[it as usize - 1]{
                     result.push((idx, Instruction::InvokeVirtual(m.clone())));
                 }else{
-                    return Err("Missing short operand of invokespecial or invalid const pool index");
+                    return Err("Missing short operand of invokespecial or invalid const pool index".to_owned());
                 }
             }
             constants::OP_INVOKE_STATIC => {
@@ -554,7 +557,7 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
                 && let ConstantEntry::MemberRef(m) = &const_pool[it as usize - 1]{
                     result.push((idx, Instruction::InvokeVirtual(m.clone())));
                 }else{
-                    return Err("Missing short operand of invokestatic or invalid const pool index");
+                    return Err("Missing short operand of invokestatic or invalid const pool index".to_owned());
                 }
             }
             constants::OP_INVOKE_INTERFACE => {
@@ -562,7 +565,7 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
                 && let ConstantEntry::MemberRef(m) = &const_pool[it as usize - 1]{
                     result.push((idx, Instruction::InvokeVirtual(m.clone())));
                 }else{
-                    return Err("Missing short operand of invokeinterface or invalid const pool index");
+                    return Err("Missing short operand of invokeinterface or invalid const pool index".to_owned());
                 }
             }
 
@@ -576,15 +579,15 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
     return Ok(result);
 }
 
-fn parse_member<T>(file: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>, constr: fn(u16, String, String, Vec<Attribute>) -> Result<T, &'static str>) -> Result<T, &'static str>{
+fn parse_member<T>(file: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>, constr: fn(u16, String, String, Vec<Attribute>) -> Result<T, String>) -> Result<T, String>{
     let flags = next_short_err(file)?;
     
     let name_idx = next_short_err(file)?;
-    let ConstantEntry::Utf8(name) = &const_pool[name_idx as usize - 1] else { return Err("Invalid field name index"); };
+    let ConstantEntry::Utf8(name) = &const_pool[name_idx as usize - 1] else { return Err("Invalid field name index".to_owned()); };
     let name = name.clone();
     
     let desc_idx = next_short_err(file)?;
-    let ConstantEntry::Utf8(desc) = &const_pool[desc_idx as usize - 1] else { return Err("Invalid field descriptor index"); };
+    let ConstantEntry::Utf8(desc) = &const_pool[desc_idx as usize - 1] else { return Err("Invalid field descriptor index".to_owned()); };
     let desc = desc.clone();
     
     let attrs = parse_attributes(file, &const_pool)?;
@@ -592,7 +595,7 @@ fn parse_member<T>(file: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>, constr: 
     return Ok(constr(flags, name, desc, attrs)?);
 }
 
-fn parse_descriptor(mut desc: String) -> Result<Vec<String>, &'static str>{
+fn parse_descriptor<'a>(mut desc: String) -> Result<Vec<String>, String>{
     desc = desc.replace("(", ""); desc = desc.replace(")", ""); // don't *actually* matter
     let mut buffer = Vec::new();
     while desc.len() > 0{
@@ -611,7 +614,7 @@ fn parse_descriptor(mut desc: String) -> Result<Vec<String>, &'static str>{
                 }
                 buffer.push(next);
             },
-            _ => return Err("Invalid descriptor item start")
+            _ => return Err(format!("Invalid descriptor item start: {}", ch))
         }
     };
     return Ok(buffer);
@@ -619,30 +622,30 @@ fn parse_descriptor(mut desc: String) -> Result<Vec<String>, &'static str>{
 
 // validation methods
 
-pub fn check_class_flags(flags: u16) -> Result<(), &'static str>{
+pub fn check_class_flags(flags: u16) -> Result<(), String>{
     if constants::bit_set(flags, constants::CLASS_ACC_INTERFACE){
         if !constants::bit_set(flags, constants::ACC_ABSTRACT){
-            return Err("Interface class must be abstract");
+            return Err("Interface class must be abstract".to_owned());
         }
         if constants::bit_set(flags, constants::ACC_FINAL){
-            return Err("Interface class must not be final");
+            return Err("Interface class must not be final".to_owned());
         }
         if constants::bit_set(flags, constants::CLASS_ACC_SUPER){
-            return Err("Interface class must not have \"super\" flag");
+            return Err("Interface class must not have \"super\" flag".to_owned());
         }
         if constants::bit_set(flags, constants::ACC_ENUM){
-            return Err("Enum class must not be marked as interface");
+            return Err("Enum class must not be marked as interface".to_owned());
         }
         if constants::bit_set(flags, constants::CLASS_ACC_MODULE){
-            return Err("Module info classfile must not be marked as interface");
+            return Err("Module info classfile must not be marked as interface".to_owned());
         }
     }else{
         if constants::bit_set(flags, constants::CLASS_ACC_ANNOTATION){
-            return Err("Annotation class must be marked as interface");
+            return Err("Annotation class must be marked as interface".to_owned());
         }
     }
     if constants::bit_set(flags, constants::ACC_ABSTRACT) && constants::bit_set(flags, constants::ACC_FINAL){
-        return Err("Class cannot be both abstract and final");
+        return Err("Class cannot be both abstract and final".to_owned());
     }
     // TODO: check modules have no other flags
     return Ok(());
@@ -678,10 +681,10 @@ fn next_sshort(stream: &mut Vec<u8>) -> Option<i16>{
     };
 }
 
-fn next_short_err(stream: &mut Vec<u8>) -> Result<u16, &'static str>{
+fn next_short_err(stream: &mut Vec<u8>) -> Result<u16, String>{
     return match next_short(stream) {
         Some(u) => Ok(u),
-        None => Err("Unexpected end of file")
+        None => Err("Unexpected end of file".to_owned())
     }
 }
 
@@ -692,10 +695,10 @@ fn next_uint(stream: &mut Vec<u8>) -> Option<u32>{
     };
 }
 
-fn next_uint_err(stream: &mut Vec<u8>) -> Result<u32, &'static str>{
+fn next_uint_err(stream: &mut Vec<u8>) -> Result<u32, String>{
     return match next_uint(stream) {
         Some(u) => Ok(u),
-        None => Err("Unexpected end of file")
+        None => Err("Unexpected end of file".to_owned())
     }
 }
 

@@ -1,3 +1,5 @@
+use std::{path, fs, sync::RwLock, collections::HashMap, io::Read};
+
 use crate::constants;
 
 use super::{class::{ClassRef, Class}, heap::{JRef, self}};
@@ -32,12 +34,42 @@ impl ClassLoader for UserClassLoader{
 
 pub struct BootstrapLoader{}
 
+static mut JAVA_BASE_CLASSES: Option<RwLock<HashMap<String, Vec<u8>>>> = None;
+
 impl ClassLoader for BootstrapLoader{
     fn name(&self) -> String{
         return constants::BOOTSTRAP_LOADER_NAME.to_owned();
     }
     fn load(&self, classname: &str) -> Vec<u8> {
-        todo!()
+        unsafe{
+            let rw = JAVA_BASE_CLASSES.as_ref().unwrap();
+            let class_data = &mut *rw.write().unwrap();
+            return class_data.get(classname).expect("java.base class not found!").clone();
+        }
+    }
+}
+
+pub fn setup_java_base(){
+    // TODO: also handle user classes
+    let java_home = std::env::var("JAVA_HOME").expect("The \"JAVA_HOME\" variable must be set.");
+    // yes this isn't strictly correct I know
+    let java_base = format!("{}/jmods/java.base.jmod", java_home);
+    let path = path::Path::new(&java_base);
+    let file = fs::File::open(&path).unwrap();
+    let mut zip = zip::ZipArchive::new(file).unwrap();
+    let mut data = HashMap::new();
+    for u in 0..zip.len(){
+        let mut file = zip.by_index(u).unwrap();
+        let name = file.name().to_owned();
+        if name.starts_with("classes/") && name.ends_with(".class"){
+            let mut file_data = Vec::new();
+            file.read_to_end(&mut file_data).expect("Could not read java.base class data!");
+            data.insert(name[8..name.len() - 6].to_owned(), file_data);
+        }
+    }
+    
+    unsafe{
+        JAVA_BASE_CLASSES = Some(RwLock::new(data));
     }
 }
 

@@ -43,6 +43,7 @@ pub fn setup(){
     for primitive in classes::create_primitive_classes(){
         add_bt_class(primitive);
     }
+    classes::setup_java_base();
 }
 
 // Object handling
@@ -124,7 +125,7 @@ pub fn bt_class_by_name(name: String) -> Option<ClassRef>{
     return class_by_name(constants::BOOTSTRAP_LOADER_NAME.to_owned(), name);
 }
 
-pub fn get_or_create_class(name: String, loader: &Arc<dyn ClassLoader>) -> Result<MaybeClass, &'static str>{
+pub fn get_or_create_class(name: String, loader: &Arc<dyn ClassLoader>) -> Result<MaybeClass, String>{
     // TODO: should we use descriptors instead?
     return match class_by_name(loader.name(), name.clone()){
         Some(r) => Ok(MaybeClass::Class(r)),
