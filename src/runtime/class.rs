@@ -1,6 +1,6 @@
 use std::sync::Arc;
-use crate::parser::{classfile_structs::{Code, Classfile, NameAndType, FieldInfo, MethodInfo}, classfile_parser};
-use super::{classes::{ClassLoader, self}, jvalue::JValue};
+use crate::{parser::{classfile_structs::{Code, Classfile, NameAndType, FieldInfo, MethodInfo, Attribute}, classfile_parser}, constants};
+use super::{classes::{ClassLoader, self}, jvalue::JValue, heap};
 
 #[derive(Debug)]
 pub struct Class{
@@ -67,7 +67,7 @@ pub type ClassRef = Arc<Class>;
 #[derive(Debug)]
 pub enum MaybeClass{
     Class(ClassRef),
-    Unloaded(String)
+    Unloaded(String) // TODO: privatise ctor? need to ensure classfile is created first
 }
 
 #[derive(Debug)]
@@ -171,10 +171,76 @@ fn binary_to_fq_name(binary_name: String) -> String{
     return binary_name.replace("/", ".");
 }
 
+fn flags_to_visibility(flags: u16) -> Visibility{
+    if constants::bit_set(flags, constants::ACC_PUBLIC){
+        return Visibility::Public;
+    }else if constants::bit_set(flags, constants::ACC_PROTECTED){
+        return Visibility::Public;
+    }else if constants::bit_set(flags, constants::ACC_PRIVATE){
+        return Visibility::Private;
+    }else{
+        return Visibility::Local;
+    }
+}
+
+fn desc_to_name(desc: String) -> Result<String, &'static str>{
+    // TODO: just keep using descriptors?
+    if desc.starts_with("L") && desc.ends_with(";"){
+        return Ok(desc[1..desc.len() - 1].to_string());
+    }else{
+        // sure
+        return match desc.chars().nth(0){
+            None => Err("Invalid descriptor of length 0"),
+            Some('Z') => Ok("boolean".to_owned()),
+            Some('B') => Ok("byte".to_owned()),
+            Some('S') => Ok("short".to_owned()),
+            Some('C') => Ok("char".to_owned()),
+            Some('I') => Ok("int".to_owned()),
+            Some('J') => Ok("long".to_owned()),
+            Some('F') => Ok("float".to_owned()),
+            Some('D') => Ok("double".to_owned()),
+            Some('V') => Ok("void".to_owned()),
+            Some(_) => Err("Invalid descriptor character")
+        }
+    }
+}
+
 fn link_field(field: FieldInfo, loader: &Arc<dyn ClassLoader>) -> Result<Field, &'static str>{
-    Err("no")
+    return Ok(Field{
+        name: field.name,
+        type_class: heap::get_or_create_class(desc_to_name(field.desc)?, loader)?,
+        visibility: flags_to_visibility(field.flags),
+        is_static: constants::bit_set(field.flags, constants::ACC_STATIC)
+    });
 }
 
 fn link_method(method: MethodInfo, loader: &Arc<dyn ClassLoader>) -> Result<Method, &'static str>{
-    Err("no")
+    let mut desc = method.desc.clone();
+    let return_type = desc.remove(method.desc.len() - 1);
+    let return_type = heap::get_or_create_class(desc_to_name(return_type)?, loader)?;
+    let mut parameters = Vec::with_capacity(desc.len());
+    for d in desc{
+        parameters.push(heap::get_or_create_class(desc_to_name(d)?, loader)?);
+    }
+
+    // TODO: check Code presence & flags
+    // (should be checked much earlier though)
+    let mut code: MethodImpl = MethodImpl::Abstract;
+    for attr in method.attributes{
+        if let Attribute::Code(c) = attr {
+            code = MethodImpl::Bytecode(c);
+        }
+    }
+    if constants::bit_set(method.flags, constants::METHOD_ACC_NATIVE){
+        code = MethodImpl::Native;
+    }
+
+    return Ok(Method{
+        name: method.name,
+        parameters,
+        return_type,
+        visibility: flags_to_visibility(method.flags),
+        is_static: constants::bit_set(method.flags, constants::ACC_STATIC),
+        code,
+    });
 }

@@ -19,6 +19,10 @@ pub const CLASS_ACC_MODULE: u16        = 0x8000;
 pub const FIELD_ACC_VOLATILE: u16      = 0x0040;
 pub const FIELD_ACC_TRANSIENT: u16     = 0x0080;
 
+// Method flags
+pub const METHOD_ACC_SYNCHRONIZED: u16 = 0x0100;
+pub const METHOD_ACC_NATIVE: u16       = 0x0100;
+
 pub fn bit_set(flags: u16, flag: u16) -> bool{
     return (flags & flag) == flag;
 }

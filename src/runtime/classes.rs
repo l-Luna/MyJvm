@@ -60,7 +60,8 @@ pub fn create_primitive_classes() -> Vec<Class>{
         ( "char", "C" ),
         ( "long", "J" ),
         ( "float", "F" ),
-        ( "double", "D" )
+        ( "double", "D" ),
+        ( "void", "V" )
     ].into_iter().map(primitive_class).collect();
 }
 

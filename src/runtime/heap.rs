@@ -1,6 +1,6 @@
 use std::{sync::{RwLock, Arc}, collections::HashMap, hash::Hash};
 
-use crate::{constants, parser::classfile_structs::Classfile};
+use crate::{constants, parser::{classfile_structs::Classfile, classfile_parser}};
 
 use super::{jvalue::JObject, class::{ClassRef, Class, MaybeClass}, classes::{self, ClassLoader}};
 
@@ -104,6 +104,16 @@ pub fn class_by_name(loader_name: String, classname: String) -> Option<ClassRef>
     return None;
 }
 
+/// Returns the classfile with the given name loaded by the given classloader.
+pub fn classfile_by_name(loader_name: String, classname: String) -> Option<Classfile>{
+    for class in classfiles_by_loader(loader_name){
+        if class.name == classname{
+            return Some(class.clone());
+        }
+    }
+    return None;
+}
+
 /// Adds a class under the bootstrap classloader.
 pub fn add_bt_class(class: Class){
     add_class(class, constants::BOOTSTRAP_LOADER_NAME.to_owned());
@@ -114,12 +124,19 @@ pub fn bt_class_by_name(name: String) -> Option<ClassRef>{
     return class_by_name(constants::BOOTSTRAP_LOADER_NAME.to_owned(), name);
 }
 
-pub fn get_or_create_class(name: String, loader: Arc<dyn ClassLoader>) -> MaybeClass{
+pub fn get_or_create_class(name: String, loader: &Arc<dyn ClassLoader>) -> Result<MaybeClass, &'static str>{
+    // TODO: should we use descriptors instead?
     return match class_by_name(loader.name(), name.clone()){
-        Some(r) => MaybeClass::Class(r),
+        Some(r) => Ok(MaybeClass::Class(r)),
         None => {
-            
-            MaybeClass::Unloaded(name)
+            if let Some(_) = classfile_by_name(loader.name(), name.clone()){
+                Ok(MaybeClass::Unloaded(name))
+            }else{
+                let mut data = loader.load(&name);
+                let classfile = classfile_parser::parse(&mut data)?;
+                add_classfile(classfile, loader.name());
+                Ok(MaybeClass::Unloaded(name))
+            }
         }
     };
 }
