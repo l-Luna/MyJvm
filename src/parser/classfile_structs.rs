@@ -207,11 +207,11 @@ pub enum Instruction{
 
     IStore(u8), LStore(u8), FStore(u8), DStore(u8), AStore(u8),
 
-    IAStore, LAStore, FAStore, DAStore, AAStore,
+    IAStore, LAStore, FAStore, DAStore, AAStore, BAStore, CAStore, SAStore,
 
     ILoad(u8), LLoad(u8), FLoad(u8), DLoad(u8), ALoad(u8),
 
-    IALoad, LALoad, FALoad, DALoad, AALoad,
+    IALoad, LALoad, FALoad, DALoad, AALoad, BALoad, CALoad, SALoad,
 
     Pop, Pop2,
     Dup, DupX1, DupX2,
@@ -225,7 +225,7 @@ pub enum Instruction{
     IRem, LRem, FRem, DRem,
     INeg, LNeg, FNeg, DNeg,
 
-    IShl, LShl, IUshr, LUshr,
+    IShl, LShl, IShr, LShr, IUshr, LUshr,
     IAnd, LAnd, IOr, LOr, IXor, LXor,
 
     IInc(u8, i8),
@@ -255,6 +255,8 @@ pub enum Instruction{
     InvokeStatic(MemberRef),
     InvokeInterface(MemberRef),
     InvokeDynamic, // TODO
+
+    ArrayLength,
 
     New(String), NewArray(String), ANewArray(String), MultiANewArray(String, u32),
 

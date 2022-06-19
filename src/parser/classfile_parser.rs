@@ -331,7 +331,7 @@ fn parse_exception_handler(attr: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) 
             catch_type: None
         })
     } else {
-        if let ConstantEntry::Utf8(exception_name) = &const_pool[exception_type_idx as usize - 1] {
+        if let ConstantEntry::Class(exception_name) = &const_pool[exception_type_idx as usize - 1] {
             Ok(ExceptionHandler {
                 start_idx,
                 end_idx,
@@ -344,6 +344,7 @@ fn parse_exception_handler(attr: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) 
     }
 }
 
+// TODO: this is terrible
 fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Result<Vec<(usize, Instruction)>, String>{
     let mut result: Vec<(usize, Instruction)> = Vec::new();
     let start_len = bytecode.len();
@@ -364,14 +365,14 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
             constants::OP_ICONST_5 => result.push((idx, Instruction::IConst(5))),
             constants::OP_BIPUSH => {
                 if let Some(it) = next_sbyte(bytecode){
-                    result.push((idx, Instruction::IConst(it)));
+                    result.push((idx, Instruction::IConst(it as i32)));
                 }else{
                     return Err("Missing byte operand of bipush".to_owned());
                 }
             },
             constants::OP_SIPUSH => {
                 if let Some(it) = next_sshort(bytecode){
-                    result.push((idx, Instruction::IConst(it)));
+                    result.push((idx, Instruction::IConst(it as i32)));
                 }else{
                     return Err("Missing byte operand of sipush".to_owned());
                 }
@@ -437,6 +438,30 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
                 }
             }
 
+            constants::OP_FSTORE_0 => result.push((idx, Instruction::FStore(0))),
+            constants::OP_FSTORE_1 => result.push((idx, Instruction::FStore(1))),
+            constants::OP_FSTORE_2 => result.push((idx, Instruction::FStore(2))),
+            constants::OP_FSTORE_3 => result.push((idx, Instruction::FStore(3))),
+            constants::OP_FSTORE => {
+                if let Some(it) = next_byte(bytecode){
+                    result.push((idx, Instruction::FStore(it)));
+                }else{
+                    return Err("Missing byte operand of fstore".to_owned());
+                }
+            }
+
+            constants::OP_DSTORE_0 => result.push((idx, Instruction::DStore(0))),
+            constants::OP_DSTORE_1 => result.push((idx, Instruction::DStore(1))),
+            constants::OP_DSTORE_2 => result.push((idx, Instruction::DStore(2))),
+            constants::OP_DSTORE_3 => result.push((idx, Instruction::DStore(3))),
+            constants::OP_DSTORE => {
+                if let Some(it) = next_byte(bytecode){
+                    result.push((idx, Instruction::DStore(it)));
+                }else{
+                    return Err("Missing byte operand of dstore".to_owned());
+                }
+            }
+
             constants::OP_ASTORE_0 => result.push((idx, Instruction::AStore(0))),
             constants::OP_ASTORE_1 => result.push((idx, Instruction::AStore(1))),
             constants::OP_ASTORE_2 => result.push((idx, Instruction::AStore(2))),
@@ -448,6 +473,15 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
                     return Err("Missing byte operand of astore".to_owned());
                 }
             }
+
+            constants::OP_IASTORE => result.push((idx, Instruction::IAStore)),
+            constants::OP_LASTORE => result.push((idx, Instruction::LAStore)),
+            constants::OP_FASTORE => result.push((idx, Instruction::FAStore)),
+            constants::OP_DASTORE => result.push((idx, Instruction::DAStore)),
+            constants::OP_AASTORE => result.push((idx, Instruction::AAStore)),
+            constants::OP_BASTORE => result.push((idx, Instruction::BAStore)),
+            constants::OP_CASTORE => result.push((idx, Instruction::CAStore)),
+            constants::OP_SASTORE => result.push((idx, Instruction::SAStore)),
 
             constants::OP_ILOAD_0 => result.push((idx, Instruction::ILoad(0))),
             constants::OP_ILOAD_1 => result.push((idx, Instruction::ILoad(1))),
@@ -473,6 +507,30 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
                 }
             }
 
+            constants::OP_FLOAD_0 => result.push((idx, Instruction::FLoad(0))),
+            constants::OP_FLOAD_1 => result.push((idx, Instruction::FLoad(1))),
+            constants::OP_FLOAD_2 => result.push((idx, Instruction::FLoad(2))),
+            constants::OP_FLOAD_3 => result.push((idx, Instruction::FLoad(3))),
+            constants::OP_FLOAD => {
+                if let Some(it) = next_byte(bytecode){
+                    result.push((idx, Instruction::FLoad(it)));
+                }else{
+                    return Err("Missing byte operand of fload".to_owned());
+                }
+            }
+
+            constants::OP_DLOAD_0 => result.push((idx, Instruction::DLoad(0))),
+            constants::OP_DLOAD_1 => result.push((idx, Instruction::DLoad(1))),
+            constants::OP_DLOAD_2 => result.push((idx, Instruction::DLoad(2))),
+            constants::OP_DLOAD_3 => result.push((idx, Instruction::DLoad(3))),
+            constants::OP_DLOAD => {
+                if let Some(it) = next_byte(bytecode){
+                    result.push((idx, Instruction::DLoad(it)));
+                }else{
+                    return Err("Missing byte operand of dload".to_owned());
+                }
+            }
+
             constants::OP_ALOAD_0 => result.push((idx, Instruction::ALoad(0))),
             constants::OP_ALOAD_1 => result.push((idx, Instruction::ALoad(1))),
             constants::OP_ALOAD_2 => result.push((idx, Instruction::ALoad(2))),
@@ -485,6 +543,25 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
                 }
             }
 
+            constants::OP_IALOAD => result.push((idx, Instruction::IALoad)),
+            constants::OP_LALOAD => result.push((idx, Instruction::LALoad)),
+            constants::OP_FALOAD => result.push((idx, Instruction::FALoad)),
+            constants::OP_DALOAD => result.push((idx, Instruction::DALoad)),
+            constants::OP_AALOAD => result.push((idx, Instruction::AALoad)),
+            constants::OP_BALOAD => result.push((idx, Instruction::BALoad)),
+            constants::OP_CALOAD => result.push((idx, Instruction::CALoad)),
+            constants::OP_SALOAD => result.push((idx, Instruction::SALoad)),
+
+            constants::OP_POP => result.push((idx, Instruction::Pop)),
+            constants::OP_POP2 => result.push((idx, Instruction::Pop2)),
+            constants::OP_DUP => result.push((idx, Instruction::Dup)),
+            constants::OP_DUP_X1 => result.push((idx, Instruction::DupX1)),
+            constants::OP_DUP_X2 => result.push((idx, Instruction::DupX2)),
+            constants::OP_DUP2 => result.push((idx, Instruction::Dup2)),
+            constants::OP_DUP2_X1 => result.push((idx, Instruction::Dup2X1)),
+            constants::OP_DUP2_X2 => result.push((idx, Instruction::Dup2X2)),
+            constants::OP_SWAP => result.push((idx, Instruction::Swap)),
+
             constants::OP_IINC => {
                 if let Some(target) = next_byte(bytecode)
                 && let Some(offset) = next_sbyte(bytecode){
@@ -496,8 +573,47 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
 
             constants::OP_IADD => result.push((idx, Instruction::IAdd)),
             constants::OP_LADD => result.push((idx, Instruction::LAdd)),
+            constants::OP_FADD => result.push((idx, Instruction::FAdd)),
+            constants::OP_DADD => result.push((idx, Instruction::DAdd)),
+
             constants::OP_ISUB => result.push((idx, Instruction::ISub)),
             constants::OP_LSUB => result.push((idx, Instruction::LSub)),
+            constants::OP_FSUB => result.push((idx, Instruction::FSub)),
+            constants::OP_DSUB => result.push((idx, Instruction::DSub)),
+
+            constants::OP_IMUL => result.push((idx, Instruction::IMul)),
+            constants::OP_LMUL => result.push((idx, Instruction::LMul)),
+            constants::OP_FMUL => result.push((idx, Instruction::FMul)),
+            constants::OP_DMUL => result.push((idx, Instruction::DMul)),
+
+            constants::OP_IDIV => result.push((idx, Instruction::IDiv)),
+            constants::OP_LDIV => result.push((idx, Instruction::LDiv)),
+            constants::OP_FDIV => result.push((idx, Instruction::FDiv)),
+            constants::OP_DDIV => result.push((idx, Instruction::DDiv)),
+
+            constants::OP_IREM => result.push((idx, Instruction::IRem)),
+            constants::OP_LREM => result.push((idx, Instruction::LRem)),
+            constants::OP_FREM => result.push((idx, Instruction::FRem)),
+            constants::OP_DREM => result.push((idx, Instruction::DRem)),
+
+            constants::OP_INEG => result.push((idx, Instruction::INeg)),
+            constants::OP_LNEG => result.push((idx, Instruction::LNeg)),
+            constants::OP_FNEG => result.push((idx, Instruction::FNeg)),
+            constants::OP_DNEG => result.push((idx, Instruction::DNeg)),
+
+            constants::OP_ISHL => result.push((idx, Instruction::IShl)),
+            constants::OP_LSHL => result.push((idx, Instruction::LShl)),
+            constants::OP_ISHR => result.push((idx, Instruction::IShr)),
+            constants::OP_LSHR => result.push((idx, Instruction::LShr)),
+            constants::OP_IUSHR => result.push((idx, Instruction::IUshr)),
+            constants::OP_LUSHR => result.push((idx, Instruction::LUshr)),
+
+            constants::OP_IAND => result.push((idx, Instruction::IAnd)),
+            constants::OP_LAND => result.push((idx, Instruction::LAnd)),
+            constants::OP_IOR => result.push((idx, Instruction::IOr)),
+            constants::OP_LOR => result.push((idx, Instruction::LOr)),
+            constants::OP_IXOR => result.push((idx, Instruction::IXor)),
+            constants::OP_LXOR => result.push((idx, Instruction::LXor)),
 
             constants::OP_GOTO => {
                 if let Some(it) = next_sshort(bytecode){
@@ -513,27 +629,125 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
                     return Err("Missing uint operand of goto_w".to_owned());
                 }
             }
+
+            // TableSwitch, LookupSwitch
+
+            constants::OP_LCMP => result.push((idx, Instruction::LCmp)),
+            constants::OP_FCMPL => result.push((idx, Instruction::FCmpL)),
+            constants::OP_FCMPG => result.push((idx, Instruction::FCmpG)),
+            constants::OP_DCMPL => result.push((idx, Instruction::DCmpL)),
+            constants::OP_DCMPG => result.push((idx, Instruction::DCmpG)),
+
             constants::OP_IF_EQ => {
                 if let Some(it) = next_sshort(bytecode){
                     result.push((idx, Instruction::IfEq(it as i32)));
-                }else{
-                    return Err("Missing short operand of ifeq".to_owned());
-                }
-            }
+                }else{ return Err("Missing short operand of ifeq".to_owned()); }
+            },
+            constants::OP_IF_NE => {
+                if let Some(it) = next_sshort(bytecode){
+                    result.push((idx, Instruction::IfNe(it as i32)));
+                }else{ return Err("Missing short operand of ifne".to_owned()); }
+            },
+            constants::OP_IF_LT => {
+                if let Some(it) = next_sshort(bytecode){
+                    result.push((idx, Instruction::IfLt(it as i32)));
+                }else{ return Err("Missing short operand of iflt".to_owned()); }
+            },
+            constants::OP_IF_GE => {
+                if let Some(it) = next_sshort(bytecode){
+                    result.push((idx, Instruction::IfGe(it as i32)));
+                }else{ return Err("Missing short operand of ifge".to_owned()); }
+            },
+            constants::OP_IF_GT => {
+                if let Some(it) = next_sshort(bytecode){
+                    result.push((idx, Instruction::IfGt(it as i32)));
+                }else{ return Err("Missing short operand of ifgt".to_owned()); }
+            },
+            constants::OP_IF_LE => {
+                if let Some(it) = next_sshort(bytecode){
+                    result.push((idx, Instruction::IfLe(it as i32)));
+                }else{ return Err("Missing short operand of ifle".to_owned()); }
+            },
+
+            constants::OP_IF_ICMP_EQ => {
+                if let Some(it) = next_sshort(bytecode){
+                    result.push((idx, Instruction::IfICmpEq(it as i32)));
+                }else{ return Err("Missing short operand of ificmpeq".to_owned()); }
+            },
+            constants::OP_IF_ICMP_NE => {
+                if let Some(it) = next_sshort(bytecode){
+                    result.push((idx, Instruction::IfICmpNe(it as i32)));
+                }else{ return Err("Missing short operand of ificmpne".to_owned()); }
+            },
+            constants::OP_IF_ICMP_LT => {
+                if let Some(it) = next_sshort(bytecode){
+                    result.push((idx, Instruction::IfICmpLt(it as i32)));
+                }else{ return Err("Missing short operand of ificmplt".to_owned()); }
+            },
             constants::OP_IF_ICMP_GE => {
                 if let Some(it) = next_sshort(bytecode){
-                    result.push((idx, Instruction::IfIcmpGe(it as i32)));
-                }else{
-                    return Err("Missing short operand of ifIicmpgt".to_owned());
-                }
-            }
+                    result.push((idx, Instruction::IfICmpGe(it as i32)));
+                }else{ return Err("Missing short operand of ificmpge".to_owned()); }
+            },
+            constants::OP_IF_ICMP_GT => {
+                if let Some(it) = next_sshort(bytecode){
+                    result.push((idx, Instruction::IfICmpGt(it as i32)));
+                }else{ return Err("Missing short operand of ificmpgt".to_owned()); }
+            },
+            constants::OP_IF_ICMP_LE => {
+                if let Some(it) = next_sshort(bytecode){
+                    result.push((idx, Instruction::IfICmpLe(it as i32)));
+                }else{ return Err("Missing short operand of ificmple".to_owned()); }
+            },
+
+            constants::OP_IF_ACMP_EQ => {
+                if let Some(it) = next_sshort(bytecode){
+                    result.push((idx, Instruction::IfACmpEq(it as i32)));
+                }else{ return Err("Missing short operand of ifacmpeq".to_owned()); }
+            },
+            constants::OP_IF_ACMP_NE => {
+                if let Some(it) = next_sshort(bytecode){
+                    result.push((idx, Instruction::IfACmpNe(it as i32)));
+                }else{ return Err("Missing short operand of ifacmpne".to_owned()); }
+            },
+            constants::OP_IF_NULL => {
+                if let Some(it) = next_sshort(bytecode){
+                    result.push((idx, Instruction::IfNull(it as i32)));
+                }else{ return Err("Missing short operand of ifnull".to_owned()); }
+            },
+            constants::OP_IF_NONNULL => {
+                if let Some(it) = next_sshort(bytecode){
+                    result.push((idx, Instruction::IfNonnull(it as i32)));
+                }else{ return Err("Missing short operand of ifnonnull".to_owned()); }
+            },
 
             constants::OP_I2L => result.push((idx, Instruction::I2L)),
+            constants::OP_I2F => result.push((idx, Instruction::I2F)),
+            constants::OP_I2D => result.push((idx, Instruction::I2D)),
+
             constants::OP_L2I => result.push((idx, Instruction::L2I)),
+            constants::OP_L2F => result.push((idx, Instruction::L2F)),
+            constants::OP_L2D => result.push((idx, Instruction::L2D)),
+
+            constants::OP_F2I => result.push((idx, Instruction::F2I)),
+            constants::OP_F2L => result.push((idx, Instruction::F2L)),
+            constants::OP_F2D => result.push((idx, Instruction::F2D)),
+
+            constants::OP_D2I => result.push((idx, Instruction::D2I)),
+            constants::OP_D2L => result.push((idx, Instruction::D2L)),
+            constants::OP_D2F => result.push((idx, Instruction::D2F)),
+
+            constants::OP_I2B => result.push((idx, Instruction::I2B)),
+            constants::OP_I2C => result.push((idx, Instruction::I2C)),
+            constants::OP_I2S => result.push((idx, Instruction::I2S)),
 
             constants::OP_IRETURN => result.push((idx, Instruction::IReturn)),
             constants::OP_LRETURN => result.push((idx, Instruction::LReturn)),
+            constants::OP_FRETURN => result.push((idx, Instruction::FReturn)),
+            constants::OP_DRETURN => result.push((idx, Instruction::DReturn)),
+            constants::OP_ARETURN => result.push((idx, Instruction::AReturn)),
             constants::OP_RETURN => result.push((idx, Instruction::Return)),
+            constants::OP_ATHROW => result.push((idx, Instruction::AThrow)),
 
             // TODO: better validation, split instructions?
             constants::OP_GET_STATIC |
@@ -560,34 +774,32 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
                 if let Some(it) = next_short(bytecode)
                 && let ConstantEntry::MemberRef(m) = &const_pool[it as usize - 1]{
                     result.push((idx, Instruction::InvokeVirtual(m.clone())));
-                }else{
-                    return Err("Missing short operand of invokevirtual or invalid const pool index".to_owned());
-                }
-            }
+                }else{ return Err("Missing short operand of invokevirtual or invalid const pool index".to_owned()); }
+            },
             constants::OP_INVOKE_SPECIAL => {
                 if let Some(it) = next_short(bytecode)
                 && let ConstantEntry::MemberRef(m) = &const_pool[it as usize - 1]{
-                    result.push((idx, Instruction::InvokeVirtual(m.clone())));
-                }else{
-                    return Err("Missing short operand of invokespecial or invalid const pool index".to_owned());
-                }
-            }
+                    result.push((idx, Instruction::InvokeSpecial(m.clone())));
+                }else{ return Err("Missing short operand of invokespecial or invalid const pool index".to_owned()); }
+            },
             constants::OP_INVOKE_STATIC => {
                 if let Some(it) = next_short(bytecode)
                 && let ConstantEntry::MemberRef(m) = &const_pool[it as usize - 1]{
-                    result.push((idx, Instruction::InvokeVirtual(m.clone())));
-                }else{
-                    return Err("Missing short operand of invokestatic or invalid const pool index".to_owned());
-                }
-            }
+                    result.push((idx, Instruction::InvokeStatic(m.clone())));
+                }else{ return Err("Missing short operand of invokestatic or invalid const pool index".to_owned()); }
+            },
             constants::OP_INVOKE_INTERFACE => {
                 if let Some(it) = next_short(bytecode)
                 && let ConstantEntry::MemberRef(m) = &const_pool[it as usize - 1]{
-                    result.push((idx, Instruction::InvokeVirtual(m.clone())));
-                }else{
-                    return Err("Missing short operand of invokeinterface or invalid const pool index".to_owned());
-                }
-            }
+                    result.push((idx, Instruction::InvokeInterface(m.clone())));
+                }else{ return Err("Missing short operand of invokeinterface or invalid const pool index".to_owned()); }
+            },
+            // TODO: invokedynamic
+
+            constants::OP_ARRAY_LENGTH => result.push((idx, Instruction::ArrayLength)),
+
+            constants::OP_MONITOR_ENTER => result.push((idx, Instruction::MonitorEnter)),
+            constants::OP_MONITOR_EXIT => result.push((idx, Instruction::MonitorExit)),
 
             other => {
                 //return Err("");
