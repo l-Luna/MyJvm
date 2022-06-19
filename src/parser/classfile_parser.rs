@@ -45,7 +45,7 @@ pub fn parse(file: &mut Vec<u8>) -> Result<Classfile, String>{
     let mut methods: Vec<MethodInfo> = Vec::with_capacity(method_count as usize);
     for _ in 0..method_count{
         methods.push(parse_member(file, &constants,
-            |flags, name, desc, attributes| Ok(MethodInfo { flags, name, desc: parse_descriptor(desc)?, attributes }))?);
+            |flags, name, desc, attributes| Ok(MethodInfo { flags, name, desc: parse_method_descriptor(desc)?, attributes }))?);
     }
 
     let attributes = parse_attributes(file, &constants)?;
@@ -595,29 +595,34 @@ fn parse_member<T>(file: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>, constr: 
     return Ok(constr(flags, name, desc, attrs)?);
 }
 
-fn parse_descriptor<'a>(mut desc: String) -> Result<Vec<String>, String>{
+fn parse_method_descriptor(mut desc: String) -> Result<Vec<String>, String>{
     desc = desc.replace("(", ""); desc = desc.replace(")", ""); // don't *actually* matter
     let mut buffer = Vec::new();
     while desc.len() > 0{
-        let ch = desc.remove(0);
-        match ch{
-            'Z' | 'B' | 'S' | 'C' | 'I' | 'J' | 'F' | 'D' | 'V' => buffer.push(ch.to_string()),
-            'L' => {
-                let mut next = String::with_capacity(3);
-                next.push('L');
-                while desc.len() > 0{
-                    let ch = desc.remove(0);
-                    next.push(ch);
-                    if ch == ';'{
-                        break;
-                    }
-                }
-                buffer.push(next);
-            },
-            _ => return Err(format!("Invalid descriptor item start: {}", ch))
-        }
+        buffer.push(next_descriptor(&mut desc)?);
     };
     return Ok(buffer);
+}
+
+fn next_descriptor(desc: &mut String) -> Result<String, String>{
+    let ch = desc.remove(0);
+    match ch {
+        'Z' | 'B' | 'S' | 'C' | 'I' | 'J' | 'F' | 'D' | 'V' => Ok(ch.to_string()),
+        '[' => Ok("[".to_owned() + &next_descriptor(desc)?),
+        'L' => {
+            let mut next = String::with_capacity(3);
+            next.push('L');
+            while desc.len() > 0{
+                let ch = desc.remove(0);
+                next.push(ch);
+                if ch == ';'{
+                    break;
+                }
+            }
+            Ok(next)
+        },
+        _ => Err(format!("Invalid descriptor item start: {}", ch))
+    }
 }
 
 // validation methods

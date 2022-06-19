@@ -51,10 +51,21 @@ impl ClassLoader for BootstrapLoader{
 
 pub fn setup_java_base(){
     // TODO: also handle user classes
-    let java_home = std::env::var("JAVA_HOME").expect("The \"JAVA_HOME\" variable must be set.");
+    let mut java_home: Option<String> = None;
+    for op in std::env::args() {
+        if op.starts_with("-java_home="){
+            java_home = Some(op[11..].to_owned());
+        }
+    }
+    if java_home == None{
+        java_home = Some(std::env::var("JAVA_HOME").expect("The \"JAVA_HOME\" variable must be set, or \"-java_home=...\" must be given as argument."));
+    }
+    let java_home = java_home.unwrap();
+
     // yes this isn't strictly correct I know
     let java_base = format!("{}/jmods/java.base.jmod", java_home);
     let path = path::Path::new(&java_base);
+    println!("Looking for java.base at {}", java_base);
     let file = fs::File::open(&path).unwrap();
     let mut zip = zip::ZipArchive::new(file).unwrap();
     let mut data = HashMap::new();
