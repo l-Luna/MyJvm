@@ -34,7 +34,7 @@ impl JValue{
     }
 
     pub fn default_value_for(desc: &str) -> JValue{
-        if desc.starts_with("L"){
+        if desc.starts_with("L") || desc.starts_with("["){
             return JValue::Reference(None);
         }
         return match desc{
@@ -42,7 +42,7 @@ impl JValue{
             "J" => JValue::Long(0),
             "F" => JValue::Float(0.0),
             "D" => JValue::Double(0.0),
-            _ => panic!("Tried to get default value of invalid descriptor")
+            _ => panic!("Tried to get default value of invalid descriptor {}", desc)
         };
     }
 }
