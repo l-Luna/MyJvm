@@ -157,13 +157,17 @@ pub fn link_class(classfile: Classfile, loader: Arc<dyn ClassLoader>) -> Result<
         .map(|f| (JValue::default_value_for(&f.type_class.descriptor()), f))
         .map(|(a, b)| (b, a)) // :3
         .collect();
+    let mut all_methods = Vec::with_capacity(classfile.methods.len());
+    for m in classfile.methods{
+        all_methods.push(link_method(m, &loader)?);
+    }
     return Ok(Class{
         name: binary_to_fq_name(classfile.name.clone()),
         descriptor: format!("L{};", classfile.name.clone()),
         loader_name: loader.name(),
         instance_fields,
         static_fields,
-        methods: vec![],
+        methods: all_methods,
         super_class: None,
         interfaces: vec![],
     });

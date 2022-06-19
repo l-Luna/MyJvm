@@ -19,9 +19,15 @@ pub fn parse(file: &mut Vec<u8>) -> Result<Classfile, String>{
         else { return Err("Unable to resolve this class's name".to_owned()); };
     let name: String = this_class.clone(); // own the string
 
-    let ConstantEntry::Class(super_class) = &constants[next_short_err(file)? as usize - 1]
-        else { return Err("Unable to resolve super class's name".to_owned()); };
-    let super_class: String = super_class.clone(); // own the string
+    let super_idx = next_short_err(file)? as usize;
+    let super_class: Option<String>;
+    if super_idx == 0{
+        super_class = None;
+    }else{
+        let ConstantEntry::Class(super_class_name) = &constants[super_idx - 1]
+            else { return Err("Unable to resolve super class's name".to_owned()); };
+        super_class = Some(super_class_name.clone());
+    }
 
     let Some(ifaces_count) = next_short(file) else { return Err("Missing interfaces count".to_owned()); };
     let mut interfaces: Vec<String> = Vec::with_capacity(ifaces_count as usize);

@@ -10,7 +10,7 @@ pub struct Classfile{
     pub flags: u16,
 
     pub name: String,
-    pub super_class: String,
+    pub super_class: Option<String>,
     pub interfaces: Vec<String>,
 
     pub fields: Vec<FieldInfo>,
