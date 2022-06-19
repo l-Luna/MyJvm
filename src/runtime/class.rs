@@ -67,7 +67,8 @@ pub type ClassRef = Arc<Class>;
 #[derive(Debug)]
 pub enum MaybeClass{
     Class(ClassRef),
-    Unloaded(String) // TODO: privatise ctor? need to ensure classfile is created first
+    Unloaded(String), // TODO: privatise ctor? need to ensure classfile is created first
+    UnloadedArray(String)
 }
 
 #[derive(Debug)]
@@ -93,6 +94,7 @@ impl MaybeClass{
         return match self{
             MaybeClass::Unloaded(d) => d.clone(),
             MaybeClass::Class(c) => c.descriptor.clone(),
+            MaybeClass::UnloadedArray(of) => "[".to_owned() + &of.clone()
         };
     }
 }

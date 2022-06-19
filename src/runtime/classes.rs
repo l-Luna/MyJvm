@@ -1,4 +1,5 @@
 use std::{path, fs, sync::RwLock, collections::HashMap, io::Read};
+use std::sync::Arc;
 
 use crate::constants;
 
@@ -35,6 +36,7 @@ impl ClassLoader for UserClassLoader{
 pub struct BootstrapLoader{}
 
 static mut JAVA_BASE_CLASSES: Option<RwLock<HashMap<String, Vec<u8>>>> = None;
+static mut ARRAY_CLASSES: Option<RwLock<HashMap<String, Vec<u8>>>> = None;
 
 impl ClassLoader for BootstrapLoader{
     fn name(&self) -> String{
@@ -44,6 +46,7 @@ impl ClassLoader for BootstrapLoader{
         unsafe{
             let rw = JAVA_BASE_CLASSES.as_ref().unwrap();
             let class_data = &mut *rw.write().unwrap();
+            dbg!(classname);
             return class_data.get(classname).expect("java.base class not found!").clone();
         }
     }
@@ -81,6 +84,7 @@ pub fn setup_java_base(){
     
     unsafe{
         JAVA_BASE_CLASSES = Some(RwLock::new(data));
+        ARRAY_CLASSES = Some(RwLock::new(HashMap::new()));
     }
 }
 
@@ -117,6 +121,21 @@ fn primitive_class(template: (&str, &str)) -> Class{
         static_fields: vec![],
         methods: vec![],
         super_class: None,
+        interfaces: vec![],
+    };
+}
+
+// Array classes
+
+fn array_class(of: &ClassRef) -> Class{
+    return Class{
+        name: of.name.clone() + "[]",
+        descriptor: "[".to_owned() + &of.descriptor,
+        loader_name: constants::BOOTSTRAP_LOADER_NAME.to_owned(),
+        instance_fields: vec![],
+        static_fields: vec![],
+        methods: vec![],
+        super_class: Some(of.clone()),
         interfaces: vec![],
     };
 }

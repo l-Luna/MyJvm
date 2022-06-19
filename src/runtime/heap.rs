@@ -130,6 +130,10 @@ pub fn get_or_create_class(name: String, loader: &Arc<dyn ClassLoader>) -> Resul
     return match class_by_name(loader.name(), name.clone()){
         Some(r) => Ok(MaybeClass::Class(r)),
         None => {
+            if name.ends_with("[]"){
+                let name = name[..name.len() - 2].to_owned();
+                return Ok(MaybeClass::UnloadedArray(name));
+            }
             if let Some(_) = classfile_by_name(loader.name(), name.clone()){
                 Ok(MaybeClass::Unloaded(name))
             }else{
