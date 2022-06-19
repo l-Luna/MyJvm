@@ -10,7 +10,7 @@ pub fn parse(file: &mut Vec<u8>) -> Result<Classfile, String>{
     let Some(major_ver) = next_short(file) else { return Err("Missing major version".to_owned()); };
 
     let Some(raw_constants) = parse_constants(file) else { return Err("Unable to parse constant pool".to_owned()); };
-    let Some(constants) = resolve_constants(raw_constants) else { return Err("Unable to resolve constant pool".to_owned()); };
+    let constants = resolve_constants(raw_constants)?;
 
     let Some(flags) = next_short(file) else { return Err("Missing access flags".to_owned()); };
     check_class_flags(flags)?;
@@ -130,7 +130,7 @@ pub fn parse_modified_utf8(file: &mut Vec<u8>) -> Option<String>{
     return Some(current);
 }
 
-fn resolve_constants(raw_pool: Vec<RawConstantEntry>) -> Option<Vec<ConstantEntry>>{
+fn resolve_constants(raw_pool: Vec<RawConstantEntry>) -> Result<Vec<ConstantEntry>, String>{
     let mut ret: Vec<ConstantEntry> = Vec::with_capacity(raw_pool.len());
     for con in &raw_pool {
         ret.push(match con {
@@ -154,106 +154,91 @@ fn resolve_constants(raw_pool: Vec<RawConstantEntry>) -> Option<Vec<ConstantEntr
                 => ConstantEntry::Package(s.clone()),
 
             RawConstantEntry::MemberRef(tag, class_idx, name_and_type_idx) => {
-                // TODO: split up into functions so we don't need... this
-                let mut ret: Option<ConstantEntry> = None;
-                if let RawConstantEntry::Class(class_name_idx) = &raw_pool[*class_idx as usize - 1]{
-                    if let RawConstantEntry::NameAndType(name_idx, descriptor_idx) = &raw_pool[*name_and_type_idx as usize - 1]{
-                        if let RawConstantEntry::Utf8(class_name) = &raw_pool[*class_name_idx as usize - 1]{
-                            if let RawConstantEntry::Utf8(name) = &raw_pool[*name_idx as usize - 1]{
-                                if let RawConstantEntry::Utf8(descriptor) = &raw_pool[*descriptor_idx as usize - 1]{
-                                    ret = Some(ConstantEntry::MemberRef(MemberRef {
-                                        kind: tag_to_member_kind(tag)?,
-                                        owner_name: class_name.clone(),
-                                        name_and_type: NameAndType {
-                                            name: name.clone(),
-                                            descriptor: descriptor.clone(),
-                                        },
-                                    }));
-                                }
-                            }
-                        }
-                    }
-                }
-                ret?
+                // TODO: split up into functions so we don't need this
+                if let RawConstantEntry::Class(class_name_idx) = &raw_pool[*class_idx as usize - 1]
+                && let RawConstantEntry::NameAndType(name_idx, descriptor_idx) = &raw_pool[*name_and_type_idx as usize - 1]
+                && let RawConstantEntry::Utf8(class_name) = &raw_pool[*class_name_idx as usize - 1]
+                && let RawConstantEntry::Utf8(name) = &raw_pool[*name_idx as usize - 1]
+                && let RawConstantEntry::Utf8(descriptor) = &raw_pool[*descriptor_idx as usize - 1]{
+                    ConstantEntry::MemberRef(MemberRef {
+                        kind: tag_to_member_kind(tag)?,
+                        owner_name: class_name.clone(),
+                        name_and_type: NameAndType {
+                            name: name.clone(),
+                            descriptor: descriptor.clone(),
+                        },
+                    })
+                }else{ return Err("Invalid MemberRef entry".to_owned()); }
             }
 
             RawConstantEntry::NameAndType(name_idx, descriptor_idx) => {
-                let mut ret: Option<ConstantEntry> = None;
-                if let RawConstantEntry::Utf8(name) = &raw_pool[*name_idx as usize - 1] {
-                    if let RawConstantEntry::Utf8(descriptor) = &raw_pool[*descriptor_idx as usize - 1] {
-                        ret = Some(ConstantEntry::NameAndType(NameAndType {
-                            name: name.clone(),
-                            descriptor: descriptor.clone(),
-                        }));
-                    }
-                }
-                ret?
+                if let RawConstantEntry::Utf8(name) = &raw_pool[*name_idx as usize - 1]
+                && let RawConstantEntry::Utf8(descriptor) = &raw_pool[*descriptor_idx as usize - 1]{
+                    ConstantEntry::NameAndType(NameAndType{
+                        name: name.clone(),
+                        descriptor: descriptor.clone(),
+                    })
+                }else{ return Err("Invalid NameAndType entry".to_owned()); }
             }
 
             RawConstantEntry::MethodHandle(dyn_ref_idx, member_ref_idx) => {
-                // also... same here
-                let mut ret: Option<ConstantEntry> = None;
-                if let RawConstantEntry::MemberRef(mtype, owner_class_idx, name_and_type_idx) = &raw_pool[*member_ref_idx as usize - 1] {
-                    if let RawConstantEntry::Class(class_name_idx) = &raw_pool[*owner_class_idx as usize - 1] {
-                        if let RawConstantEntry::Utf8(class_name) = &raw_pool[*class_name_idx as usize - 1] {
-                            if let RawConstantEntry::NameAndType(name_idx, desc_idx) = &raw_pool[*name_and_type_idx as usize - 1] {
-                                if let RawConstantEntry::Utf8(name) = &raw_pool[*name_idx as usize - 1] {
-                                    if let RawConstantEntry::Utf8(desc) = &raw_pool[*desc_idx as usize - 1] {
-                                        ret = Some(ConstantEntry::MethodHandle(
-                                            dyn_ref_index_to_type(dyn_ref_idx)?,
-                                            MemberRef {
-                                                kind: tag_to_member_kind(mtype)?,
-                                                owner_name: class_name.clone(),
-                                                name_and_type: NameAndType {
-                                                    name: name.clone(),
-                                                    descriptor: desc.clone()
-                                                }
-                                            }
-                                        ));
-                                    }
-                                }
-                            }
+                // also same here
+                if let RawConstantEntry::MemberRef(mtype, owner_class_idx, name_and_type_idx) = &raw_pool[*member_ref_idx as usize - 1]
+                && let RawConstantEntry::Class(class_name_idx) = &raw_pool[*owner_class_idx as usize - 1]
+                && let RawConstantEntry::Utf8(class_name) = &raw_pool[*class_name_idx as usize - 1]
+                && let RawConstantEntry::NameAndType(name_idx, desc_idx) = &raw_pool[*name_and_type_idx as usize - 1]
+                && let RawConstantEntry::Utf8(name) = &raw_pool[*name_idx as usize - 1]
+                && let RawConstantEntry::Utf8(desc) = &raw_pool[*desc_idx as usize - 1]{
+                    ConstantEntry::MethodHandle(
+                        dyn_ref_index_to_type(dyn_ref_idx)?,
+                        MemberRef{
+                            kind: tag_to_member_kind(mtype)?,
+                            owner_name: class_name.clone(),
+                            name_and_type: NameAndType{
+                                name: name.clone(),
+                                descriptor: desc.clone(),
+                            },
                         }
-                    }
-                }
-                ret?
+                    )
+                }else{ return Err("Invalid MethodHandle entry".to_owned()); }
             },
 
             RawConstantEntry::Dynamic(_,_,_) => {
                 // TODO: resolve against bootstrap table later
                 ConstantEntry::Dynamic(Dynamic{
-                    bootstrap: NameAndType { name: "".to_string(), descriptor: "".to_string() },
-                    value: NameAndType { name: "".to_string(), descriptor: "".to_string() }
+                    bootstrap: NameAndType{ name: "".to_string(), descriptor: "".to_string() },
+                    value: NameAndType{ name: "".to_string(), descriptor: "".to_string() }
                 })
             }
 
             _ => panic!("Bad conversion from {:?}", con)
         });
     }
-    return Some(ret);
+    return Ok(ret);
 }
 
-fn tag_to_member_kind(tag: &u8) -> Option<MemberKind>{
+fn tag_to_member_kind(tag: &u8) -> Result<MemberKind, String>{
     return match tag {
-        9 => Some(MemberKind::Field),
-        10 => Some(MemberKind::Method),
-        11 => Some(MemberKind::InterfaceMethod),
-        _ => None
+        9 => Ok(MemberKind::Field),
+        10 => Ok(MemberKind::Method),
+        11 => Ok(MemberKind::InterfaceMethod),
+        _ => Err(format!("Invalid member reference tag {}", tag))
     }
 }
 
-fn dyn_ref_index_to_type(idx: &u8) -> Option<DynamicReferenceType>{
+fn dyn_ref_index_to_type(idx: &u8) -> Result<DynamicReferenceType, String>{
     return match idx {
         // TODO: is this correct?
-        0 => Some(DynamicReferenceType::GetField),
-        1 => Some(DynamicReferenceType::GetStatic),
-        2 => Some(DynamicReferenceType::PutField),
-        3 => Some(DynamicReferenceType::PutStatic),
-        4 => Some(DynamicReferenceType::InvokeVirtual),
-        5 => Some(DynamicReferenceType::NewInvokeSpecial),
-        6 => Some(DynamicReferenceType::InvokeStatic),
-        7 => Some(DynamicReferenceType::InvokeSpecial),
-        _ => None
+        1 => Ok(DynamicReferenceType::GetField),
+        2 => Ok(DynamicReferenceType::GetStatic),
+        3 => Ok(DynamicReferenceType::PutField),
+        4 => Ok(DynamicReferenceType::PutStatic),
+        5 => Ok(DynamicReferenceType::InvokeVirtual),
+        6 => Ok(DynamicReferenceType::InvokeStatic),
+        7 => Ok(DynamicReferenceType::InvokeSpecial),
+        8 => Ok(DynamicReferenceType::NewInvokeSpecial),
+        9 => Ok(DynamicReferenceType::InvokeInterface),
+        _ => Err(format!("Invalid dynamic reference type {}", idx))
     }
 }
 

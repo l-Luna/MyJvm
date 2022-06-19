@@ -74,7 +74,7 @@ pub enum MemberKind {
 }
 #[derive(Debug, Clone)]
 pub enum DynamicReferenceType{
-    GetField, GetStatic, PutField, PutStatic, InvokeVirtual, NewInvokeSpecial, InvokeStatic, InvokeSpecial
+    GetField, GetStatic, PutField, PutStatic, InvokeVirtual, InvokeStatic, InvokeSpecial, NewInvokeSpecial, InvokeInterface
 }
 
 #[derive(Debug, Clone)]
