@@ -185,34 +185,10 @@ fn flags_to_visibility(flags: u16) -> Visibility{
     }
 }
 
-fn desc_to_name(desc: String) -> Result<String, String>{
-    // TODO: just keep using descriptors?
-    if desc.starts_with("L") && desc.ends_with(";"){
-        return Ok(desc[1..desc.len() - 1].to_string());
-    }else if desc.starts_with("["){
-        return Ok(desc_to_name(desc[1..].to_owned())? + "[]");
-    }else{
-        // sure
-        return match desc.chars().nth(0){
-            None => Err("Invalid descriptor of length 0".to_owned()),
-            Some('Z') => Ok("boolean".to_owned()),
-            Some('B') => Ok("byte".to_owned()),
-            Some('S') => Ok("short".to_owned()),
-            Some('C') => Ok("char".to_owned()),
-            Some('I') => Ok("int".to_owned()),
-            Some('J') => Ok("long".to_owned()),
-            Some('F') => Ok("float".to_owned()),
-            Some('D') => Ok("double".to_owned()),
-            Some('V') => Ok("void".to_owned()),
-            Some(c) => Err(format!("Invalid descriptor character: {}", c))
-        }
-    }
-}
-
 fn link_field(field: FieldInfo, loader: &Arc<dyn ClassLoader>) -> Result<Field, String>{
     return Ok(Field{
         name: field.name,
-        type_class: heap::get_or_create_class(desc_to_name(field.desc)?, loader)?,
+        type_class: heap::get_or_create_class(field.desc, loader)?,
         visibility: flags_to_visibility(field.flags),
         is_static: constants::bit_set(field.flags, constants::ACC_STATIC)
     });
@@ -221,10 +197,10 @@ fn link_field(field: FieldInfo, loader: &Arc<dyn ClassLoader>) -> Result<Field, 
 fn link_method(method: MethodInfo, loader: &Arc<dyn ClassLoader>) -> Result<Method, String>{
     let mut desc = method.desc.clone();
     let return_type = desc.remove(method.desc.len() - 1);
-    let return_type = heap::get_or_create_class(desc_to_name(return_type)?, loader)?;
+    let return_type = heap::get_or_create_class(return_type, loader)?;
     let mut parameters = Vec::with_capacity(desc.len());
     for d in desc{
-        parameters.push(heap::get_or_create_class(desc_to_name(d)?, loader)?);
+        parameters.push(heap::get_or_create_class(d, loader)?);
     }
 
     // TODO: check Code presence & flags

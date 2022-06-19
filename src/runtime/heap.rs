@@ -95,10 +95,10 @@ pub fn classfiles_by_loader(loader_name: String) -> Vec<Classfile>{
     unsafe{ return unwrap_map_list(loader_name, &CREATED_CLASSES); }
 }
 
-/// Returns the class with the given name loaded by the given classloader.
-pub fn class_by_name(loader_name: String, classname: String) -> Option<ClassRef>{
+/// Returns the class with the given descriptor loaded by the given classloader.
+pub fn class_by_desc(loader_name: String, class_desc: String) -> Option<ClassRef>{
     for class in classes_by_loader(loader_name){
-        if class.name == classname{
+        if class.descriptor == class_desc{
             return Some(class.clone());
         }
     }
@@ -106,9 +106,9 @@ pub fn class_by_name(loader_name: String, classname: String) -> Option<ClassRef>
 }
 
 /// Returns the classfile with the given name loaded by the given classloader.
-pub fn classfile_by_name(loader_name: String, classname: String) -> Option<Classfile>{
+pub fn classfile_by_name(loader_name: String, class_desc: String) -> Option<Classfile>{
     for class in classfiles_by_loader(loader_name){
-        if class.name == classname{
+        if class.name == class_desc{
             return Some(class.clone());
         }
     }
@@ -120,33 +120,55 @@ pub fn add_bt_class(class: Class){
     add_class(class, constants::BOOTSTRAP_LOADER_NAME.to_owned());
 }
 
-// Returns the class with the given name loaded by the bootstrap classloader.
-pub fn bt_class_by_name(name: String) -> Option<ClassRef>{
-    return class_by_name(constants::BOOTSTRAP_LOADER_NAME.to_owned(), name);
+// Returns the class with the given descriptor loaded by the bootstrap classloader.
+pub fn bt_class_by_desc(class_desc: String) -> Option<ClassRef>{
+    return class_by_desc(constants::BOOTSTRAP_LOADER_NAME.to_owned(), class_desc);
 }
 
-pub fn get_or_create_class(name: String, loader: &Arc<dyn ClassLoader>) -> Result<MaybeClass, String>{
-    // TODO: should we use descriptors instead?
-    return match class_by_name(loader.name(), name.clone()){
+pub fn get_or_create_class(class_desc: String, loader: &Arc<dyn ClassLoader>) -> Result<MaybeClass, String>{
+    return match class_by_desc(loader.name(), class_desc.clone()){
         Some(r) => Ok(MaybeClass::Class(r)),
         None => {
-            if name.ends_with("[]"){
-                let name = name[..name.len() - 2].to_owned();
+            if class_desc.starts_with("["){
+                let name = class_desc[1..].to_owned();
                 return Ok(MaybeClass::UnloadedArray(name));
             }
-            if let Some(_) = classfile_by_name(loader.name(), name.clone()){
-                Ok(MaybeClass::Unloaded(name))
+            if let Some(_) = classfile_by_name(loader.name(), desc_to_name(class_desc.clone())?){
+                Ok(MaybeClass::Unloaded(class_desc))
             }else{
-                let mut data = loader.load(&name);
+                let mut data = loader.load(&desc_to_name(class_desc.clone())?);
                 let classfile = classfile_parser::parse(&mut data)?;
                 add_classfile(classfile, loader.name());
-                Ok(MaybeClass::Unloaded(name))
+                Ok(MaybeClass::Unloaded(class_desc))
             }
         }
     };
 }
 
 // implementation
+
+fn desc_to_name(desc: String) -> Result<String, String>{
+    if desc.starts_with("L") && desc.ends_with(";"){
+        return Ok(desc[1..desc.len() - 1].to_string());
+    }else if desc.starts_with("["){
+        return Ok(desc_to_name(desc[1..].to_owned())? + "[]");
+    }else{
+        // sure
+        return match desc.chars().nth(0){
+            None => Err("Invalid descriptor of length 0".to_owned()),
+            Some('Z') => Ok("boolean".to_owned()),
+            Some('B') => Ok("byte".to_owned()),
+            Some('S') => Ok("short".to_owned()),
+            Some('C') => Ok("char".to_owned()),
+            Some('I') => Ok("int".to_owned()),
+            Some('J') => Ok("long".to_owned()),
+            Some('F') => Ok("float".to_owned()),
+            Some('D') => Ok("double".to_owned()),
+            Some('V') => Ok("void".to_owned()),
+            Some(c) => Err(format!("Invalid descriptor character: {}", c))
+        }
+    }
+}
 
 fn add_to_map_list<K, V>(key: K, value: V, map_list: &Option<RwLock<HashMap<K, Vec<V>>>>) where K: Eq + Clone + Hash{
     let rw = map_list.as_ref().unwrap();
