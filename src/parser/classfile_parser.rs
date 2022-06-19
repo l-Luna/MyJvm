@@ -217,9 +217,15 @@ fn resolve_constants(raw_pool: Vec<RawConstantEntry>) -> Option<Vec<ConstantEntr
                     }
                 }
                 ret?
-            }
+            },
 
-            // TODO: Dynamic
+            RawConstantEntry::Dynamic(_,_,_) => {
+                // TODO: resolve against bootstrap table later
+                ConstantEntry::Dynamic(Dynamic{
+                    bootstrap: NameAndType { name: "".to_string(), descriptor: "".to_string() },
+                    value: NameAndType { name: "".to_string(), descriptor: "".to_string() }
+                })
+            }
 
             _ => panic!("Bad conversion from {:?}", con)
         });
