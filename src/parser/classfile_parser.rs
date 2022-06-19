@@ -368,10 +368,24 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
                 }else{
                     return Err("Missing byte operand of bipush".to_owned());
                 }
-            }
+            },
+            constants::OP_SIPUSH => {
+                if let Some(it) = next_sshort(bytecode){
+                    result.push((idx, Instruction::IConst(it)));
+                }else{
+                    return Err("Missing byte operand of sipush".to_owned());
+                }
+            },
 
             constants::OP_LCONST_0 => result.push((idx, Instruction::LConst(0))),
             constants::OP_LCONST_1 => result.push((idx, Instruction::LConst(1))),
+
+            constants::OP_FCONST_0 => result.push((idx, Instruction::FConst(0.0))),
+            constants::OP_FCONST_1 => result.push((idx, Instruction::FConst(1.0))),
+            constants::OP_FCONST_2 => result.push((idx, Instruction::FConst(2.0))),
+
+            constants::OP_DCONST_0 => result.push((idx, Instruction::DConst(0.0))),
+            constants::OP_DCONST_1 => result.push((idx, Instruction::DConst(1.0))),
 
             // TODO: check constant types
             constants::OP_LDC => {

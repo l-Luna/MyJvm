@@ -201,36 +201,51 @@ pub struct Code{
 #[derive(Debug, Clone)]
 // only supported ones rn
 pub enum Instruction{
-    IConst(i8), // includes iconst_x and bipush
-    LConst(i8),
-    AConstNull,
+    IConst(i32), LConst(i64), FConst(f32), DConst(f64), AConstNull,
 
     Ldc(ConstantEntry), // copy it here for now
 
-    IStore(u8),
-    LStore(u8),
-    AStore(u8),
+    IStore(u8), LStore(u8), FStore(u8), DStore(u8), AStore(u8),
 
-    ILoad(u8),
-    LLoad(u8),
-    ALoad(u8),
+    IAStore, LAStore, FAStore, DAStore, AAStore,
+
+    ILoad(u8), LLoad(u8), FLoad(u8), DLoad(u8), ALoad(u8),
+
+    IALoad, LALoad, FALoad, DALoad, AALoad,
+
+    Pop, Pop2,
+    Dup, DupX1, DupX2,
+    Dup2, Dup2X1, Dup2X2,
+    Swap,
+
+    IAdd, LAdd, FAdd, DAdd,
+    ISub, LSub, FSub, DSub,
+    IMul, LMul, FMul, DMul,
+    IDiv, LDiv, FDiv, DDiv,
+    IRem, LRem, FRem, DRem,
+    INeg, LNeg, FNeg, DNeg,
+
+    IShl, LShl, IUshr, LUshr,
+    IAnd, LAnd, IOr, LOr, IXor, LXor,
 
     IInc(u8, i8),
-    IAdd,
-    LAdd,
-    ISub,
-    LSub,
 
-    Goto(i32),
-    IfEq(i32),
-    IfIcmpGe(i32),
+    Goto(i32), GotoWide(i64),
+    TableSwitch, LookupSwitch, // TODO
 
-    I2L,
-    L2I,
+    LCmp, FCmpL, FCmpG, DCmpL, DCmpG,
 
-    IReturn,
-    LReturn,
-    Return,
+    IfEq(i32), IfNe(i32), IfLt(i32), IfGe(i32), IfGt(i32), IfLe(i32),
+    IfICmpEq(i32), IfICmpNe(i32), IfICmpLt(i32), IfICmpGe(i32), IfICmpGt(i32), IfICmpLe(i32),
+    IfACmpEq(i32), IfACmpNe(i32), IfNull(i32), IfNonnull(i32),
+
+    I2L, I2F, I2D,
+    L2I, L2F, L2D,
+    F2I, F2L, F2D,
+    D2I, D2L, D2F,
+    I2B, I2C, I2S,
+
+    IReturn, LReturn, FReturn, DReturn, AReturn, Return, AThrow,
 
     GetField(MemberRef),
     PutField(MemberRef),
@@ -238,5 +253,14 @@ pub enum Instruction{
     InvokeVirtual(MemberRef),
     InvokeSpecial(MemberRef),
     InvokeStatic(MemberRef),
-    InvokeInterface(MemberRef)
+    InvokeInterface(MemberRef),
+    InvokeDynamic, // TODO
+
+    New(String), NewArray(String), ANewArray(String), MultiANewArray(String, u32),
+
+    CheckCast(String), InstanceOf(String),
+
+    MonitorEnter, MonitorExit,
+
+    Wide /*???*/,
 }
