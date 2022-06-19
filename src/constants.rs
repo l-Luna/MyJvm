@@ -41,7 +41,7 @@ pub const OP_ICONST_3: u8               = 6;
 pub const OP_ICONST_4: u8               = 7;
 pub const OP_ICONST_5: u8               = 8;
 pub const OP_BIPUSH: u8                 = 16;
-pub const OP_SIPUSH: u8                 = 16;
+pub const OP_SIPUSH: u8                 = 17;
 
 pub const OP_LCONST_0: u8               = 9;
 pub const OP_LCONST_1: u8               = 10;
@@ -264,13 +264,13 @@ pub const OP_NEWARRAY: u8                = 188;
 pub const OP_ANEWARRAY: u8               = 189;
 pub const OP_ARRAY_LENGTH: u8            = 190;
 pub const OP_ATHROW: u8                  = 191;
-pub const OP_CHECKCAST: u8               = 192;
-pub const OP_INSTANCEOF: u8              = 193;
-pub const OP_MONITORENTER: u8            = 194;
-pub const OP_MONITOREXIT: u8             = 195;
+pub const OP_CHECK_CAST: u8              = 192;
+pub const OP_INSTANCE_OF: u8             = 193;
+pub const OP_MONITOR_ENTER: u8           = 194;
+pub const OP_MONITOR_EXIT: u8            = 195;
 
 pub const OP_WIDE: u8                    = 196;
-pub const OP_MULTIANEWARRAY: u8          = 197;
+pub const OP_MULTI_ANEWARRAY: u8         = 197;
 pub const OP_IF_NULL: u8                 = 198;
 pub const OP_IF_NONNULL: u8              = 199;
 // jsr_w, not supported
