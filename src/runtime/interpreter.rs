@@ -5,6 +5,7 @@ use crate::parser::classfile_structs::ConstantEntry;
 
 use super::class::Method;
 
+#[derive(Debug)]
 pub enum MethodResult{
     FinishWithValue(JValue),
     Finish,
@@ -13,10 +14,14 @@ pub enum MethodResult{
 }
 
 pub fn execute(method: &Method, args: Vec<JValue>) -> MethodResult{
-    MethodResult::Finish
+    match &method.code{
+        super::class::MethodImpl::Bytecode(bytecode) => interpret(method, args, bytecode),
+        super::class::MethodImpl::Native => todo!(),
+        super::class::MethodImpl::Abstract => todo!(),
+    }
 }
 
-pub fn interpret(method: &MethodInfo, args: Vec<JValue>, code: &Code) -> MethodResult{
+pub fn interpret(method: &Method, args: Vec<JValue>, code: &Code) -> MethodResult{
     let mut i: usize = 0;
     let mut stack: Vec<JValue> = Vec::with_capacity(code.max_stack as usize);
     let mut locals: Vec<Option<JValue>> = Vec::with_capacity(code.max_locals as usize);
