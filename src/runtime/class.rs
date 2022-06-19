@@ -128,7 +128,7 @@ pub enum MethodImpl{
 // Class loading
 // TODO: detect circular hierarchies
 
-// Loads and links the class with the given name using the bootstrap classloader.
+/// Loads and links the class with the given name using the bootstrap classloader.
 pub fn load_class(classname: String) -> Result<Class, String>{
     return load_class_with(classname, Arc::new(classes::BOOTSTRAP_LOADER));
 }

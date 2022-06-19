@@ -44,11 +44,21 @@ impl ClassLoader for BootstrapLoader{
     }
     fn load(&self, classname: &str) -> Vec<u8> {
         unsafe{
+            // try platform classes first
             let rw = JAVA_BASE_CLASSES.as_ref().unwrap();
             let class_data = &mut *rw.write().unwrap();
-            dbg!(classname);
-            return class_data.get(classname).expect("java.base class not found!").clone();
+            if class_data.contains_key(classname){
+                return class_data.get(classname).unwrap().clone();
+            }
         }
+        // try relative path
+        // TODO: better error reporting
+        let as_path = format!("./{}.class", classname);
+        let path = std::path::absolute(std::path::Path::new(&as_path)).unwrap();
+        let mut file = std::fs::File::open(path).unwrap();
+        let mut buffer = Vec::new();
+        file.read_to_end(&mut buffer);
+        return buffer;
     }
 }
 
