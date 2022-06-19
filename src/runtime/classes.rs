@@ -137,7 +137,7 @@ fn primitive_class(template: (&str, &str)) -> Class{
 
 // Array classes
 
-fn array_class(of: &ClassRef) -> Class{
+pub fn array_class(of: &ClassRef) -> Class{
     return Class{
         name: of.name.clone() + "[]",
         descriptor: "[".to_owned() + &of.descriptor,

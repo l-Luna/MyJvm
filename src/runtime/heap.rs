@@ -2,7 +2,7 @@ use std::{sync::{RwLock, Arc}, collections::HashMap, hash::Hash};
 
 use crate::{constants, parser::{classfile_structs::Classfile, classfile_parser}};
 
-use super::{jvalue::JObject, class::{ClassRef, Class, MaybeClass}, classes::{self, ClassLoader}};
+use super::{jvalue::JObject, class::{ClassRef, Class, MaybeClass, self}, classes::{self, ClassLoader}};
 
 // TODO: use weak references everywhere (esp JRef and ClassRef)
 // and only keep objects and classes alive via the heaps
@@ -143,6 +143,30 @@ pub fn get_or_create_class(class_desc: String, loader: &Arc<dyn ClassLoader>) ->
             }
         }
     };
+}
+
+pub fn get_or_create_bt_class(class_desc: String) -> Result<MaybeClass, String>{
+    let u: Arc<dyn ClassLoader> = Arc::new(classes::BOOTSTRAP_LOADER);
+    return get_or_create_class(class_desc, &u);
+}
+
+// TODO: handle user classloaders
+pub fn ensure_loaded(class: MaybeClass) -> Result<ClassRef, String>{
+    match class{
+        MaybeClass::Class(c) => Ok(c),
+        MaybeClass::Unloaded(desc) => {
+            // first check if the class has already been loaded
+            if let Some(c) = bt_class_by_desc(desc.clone()){
+                return Ok(c);
+            }
+            // otherwise create and save it
+            let class = class::load_class(desc.clone())?;
+            add_bt_class(class);
+            return Ok(bt_class_by_desc(desc).unwrap());
+        },
+        // TODO: cache array classes?
+        MaybeClass::UnloadedArray(comp_desc) => Ok(Arc::new(classes::array_class(&ensure_loaded(get_or_create_bt_class(comp_desc)?)?))),
+    }
 }
 
 // implementation

@@ -3,7 +3,7 @@ use runtime::jvalue::JValue;
 
 use crate::parser::classfile_structs::ConstantEntry;
 
-use super::class::Method;
+use super::{class::{Method, self}, heap};
 
 #[derive(Debug)]
 pub enum MethodResult{
@@ -42,6 +42,13 @@ pub fn interpret(method: &Method, args: Vec<JValue>, code: &Code) -> MethodResul
                 stack.insert(0, JValue::Long(*it as i64));
                 stack.insert(1, JValue::Second);
             },
+            Instruction::FConst(it) => {
+                stack.insert(0, JValue::Float(*it as f32));
+            },
+            Instruction::DConst(it) => {
+                stack.insert(0, JValue::Double(*it as f64));
+                stack.insert(1, JValue::Second);
+            },
 
             Instruction::Ldc(c) => match c{
                 ConstantEntry::Integer(i) => {
@@ -70,6 +77,24 @@ pub fn interpret(method: &Method, args: Vec<JValue>, code: &Code) -> MethodResul
                     stack.remove(0); stack.remove(0); // get rid of the Second too
                 }else{
                     return MethodResult::MachineError("Tried to execute lstore without long on top of stack");
+                }
+            },
+            Instruction::FStore(at) => {
+                if let Some(JValue::Float(value)) = stack.get(0){
+                    let at = *at as usize; // yeah
+                    locals = locals.splice(at..at+1, [Some(JValue::Float(*value))]).collect();
+                    stack.remove(0);
+                }else{
+                    return MethodResult::MachineError("Tried to execute fstore without float on top of stack");
+                }
+            },
+            Instruction::DStore(at) => {
+                if let Some(JValue::Double(value)) = stack.get(0){
+                    let at = *at as usize;
+                    locals = locals.splice(at..at+2, [Some(JValue::Double(*value)), Some(JValue::Second)]).collect();
+                    stack.remove(0); stack.remove(0); // get rid of the Second too
+                }else{
+                    return MethodResult::MachineError("Tried to execute dstore without double on top of stack");
                 }
             },
             Instruction::AStore(at) => {
@@ -142,10 +167,38 @@ pub fn interpret(method: &Method, args: Vec<JValue>, code: &Code) -> MethodResul
                     MethodResult::MachineError("Tried to execute lreturn without long on top of stack")
                 }
             },
+            Instruction::FReturn => {
+                return if let Some(JValue::Float(ret)) = stack.get(0){
+                    MethodResult::FinishWithValue(JValue::Float(*ret))
+                }else{
+                    MethodResult::MachineError("Tried to execute freturn without float on top of stack")
+                }
+            },
+            Instruction::DReturn => {
+                return if let Some(JValue::Double(ret)) = stack.get(0){
+                    MethodResult::FinishWithValue(JValue::Double(*ret))
+                }else{
+                    MethodResult::MachineError("Tried to execute dreturn without double on top of stack")
+                }
+            },
             Instruction::Return => return MethodResult::Finish,
 
+            Instruction::GetField(target) => {
+                // TODO: this is wrong! should not try to load class every time, use pre-existing one
+                let owner = class::load_class(target.owner_name.clone()).expect("Could not load field owner");
+                let mut pushed = false;
+                for f in owner.static_fields{
+                    if f.0.name == target.name_and_type.name{
+                        stack.insert(0, f.1.clone());
+                        pushed = true;
+                    }
+                }
+                if !pushed{
+                    todo!();
+                }
+            }
+            
             Instruction::InvokeVirtual(target) => {
-                // TODO: parse descriptors!
                 // pop all necessary values, resolve the class reference, and invoke!
             }
 
