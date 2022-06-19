@@ -194,8 +194,8 @@ pub const OP_IINC: u8                    = 132;
 
 pub const OP_GOTO: u8                    = 167;
 // jsr, ret, not supported
-pub const OP_TABLESWITCH: u8             = 170;
-pub const OP_LOOKUPSWITCH: u8            = 171;
+pub const OP_TABLE_SWITCH: u8            = 170;
+pub const OP_LOOKUP_SWITCH: u8           = 171;
 pub const OP_GOTO_W: u8                  = 200;
 
 pub const OP_LCMP: u8                    = 148;

@@ -231,7 +231,7 @@ pub enum Instruction{
     IInc(u8, i8),
 
     Goto(i32), GotoWide(i64),
-    TableSwitch, LookupSwitch, // TODO
+    TableSwitch /*TODO*/, LookupSwitch(i32, Vec<(i32, i32)>),
 
     LCmp, FCmpL, FCmpG, DCmpL, DCmpG,
 
@@ -254,11 +254,11 @@ pub enum Instruction{
     InvokeSpecial(MemberRef),
     InvokeStatic(MemberRef),
     InvokeInterface(MemberRef),
-    InvokeDynamic, // TODO
+    InvokeDynamic(Dynamic),
 
     ArrayLength,
 
-    New(String), NewArray(String), ANewArray(String), MultiANewArray(String, u32),
+    New(String), NewArray(u8), ANewArray(String), MultiANewArray(String, u32),
 
     CheckCast(String), InstanceOf(String),
 

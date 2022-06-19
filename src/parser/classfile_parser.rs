@@ -630,7 +630,24 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
                 }
             }
 
-            // TableSwitch, LookupSwitch
+            // LookupSwitch
+            constants::OP_LOOKUP_SWITCH => {
+                let pad = (4 - ((idx + 1) % 4)) % 4; // amazing
+                for _ in 0..pad{
+                    bytecode.remove(0);
+                }
+                if let Some(default_idx) = next_int(bytecode)
+                && let Some(n_pairs) = next_int(bytecode){
+                    let mut pairs: Vec<(i32, i32)> = Vec::with_capacity(n_pairs as usize);
+                    for _ in 0..n_pairs{
+                        if let Some(m) = next_int(bytecode)
+                        && let Some(off) = next_int(bytecode){
+                            pairs.push((m, off));
+                        }else{ return Err("Missing match-offset pair of tableswitch".to_owned()); }
+                    }
+                    result.push((idx, Instruction::LookupSwitch(default_idx, pairs)));
+                }else{ return Err("Missing initial int operands of tableswitch".to_owned()); }
+            }
 
             constants::OP_LCMP => result.push((idx, Instruction::LCmp)),
             constants::OP_FCMPL => result.push((idx, Instruction::FCmpL)),
@@ -755,18 +772,14 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
                 if let Some(it) = next_short(bytecode)
                 && let ConstantEntry::MemberRef(m) = &const_pool[it as usize - 1]{
                     result.push((idx, Instruction::GetField(m.clone())));
-                }else{
-                    return Err("Missing short operand of getstatic/getfield or invalid const pool index".to_owned());
-                }
+                }else{ return Err("Missing short operand of getstatic/getfield or invalid const pool index".to_owned()); }
             }
             constants::OP_PUT_STATIC |
             constants::OP_PUT_FIELD => {
                 if let Some(it) = next_short(bytecode)
                 && let ConstantEntry::MemberRef(m) = &const_pool[it as usize - 1]{
                     result.push((idx, Instruction::PutField(m.clone())));
-                }else{
-                    return Err("Missing short operand of putstatic/putfield or invalid const pool index".to_owned());
-                }
+                }else{ return Err("Missing short operand of putstatic/putfield or invalid const pool index".to_owned()); }
             }
 
             // TODO: cleanup (this whole thing :p)
@@ -794,9 +807,46 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
                     result.push((idx, Instruction::InvokeInterface(m.clone())));
                 }else{ return Err("Missing short operand of invokeinterface or invalid const pool index".to_owned()); }
             },
-            // TODO: invokedynamic
+            constants::OP_INVOKE_DYNAMIC => {
+                if let Some(it) = next_short(bytecode)
+                && let ConstantEntry::Dynamic(d) = &const_pool[it as usize - 1]{
+                    expect_short(bytecode, 0);
+                    result.push((idx, Instruction::InvokeDynamic(d.clone())));
+                }else{ return Err("Missing short operand of invokedynamic or invalid const pool index".to_owned()); }
+            },
 
             constants::OP_ARRAY_LENGTH => result.push((idx, Instruction::ArrayLength)),
+
+            constants::OP_NEW => {
+                if let Some(it) = next_short(bytecode)
+                    && let ConstantEntry::Class(name) = &const_pool[it as usize - 1]{
+                    result.push((idx, Instruction::New(name.clone())));
+                }else{ return Err("Missing short operand of new or invalid const pool index".to_owned()); }
+            },
+            constants::OP_NEWARRAY => {
+                if let Some(it) = next_byte(bytecode){
+                    result.push((idx, Instruction::NewArray(it)));
+                }else{ return Err("Missing byte operand of newarray".to_owned()); }
+            },
+            constants::OP_ANEWARRAY => {
+                if let Some(it) = next_short(bytecode)
+                    && let ConstantEntry::Class(name) = &const_pool[it as usize - 1]{
+                    result.push((idx, Instruction::ANewArray(name.clone())));
+                }else{ return Err("Missing short operand of anewarray or invalid const pool index".to_owned()); }
+            },
+
+            constants::OP_CHECK_CAST => {
+                if let Some(it) = next_short(bytecode)
+                && let ConstantEntry::Class(name) = &const_pool[it as usize - 1]{
+                    result.push((idx, Instruction::CheckCast(name.clone())));
+                }else{ return Err("Missing short operand of checkcast or invalid const pool index".to_owned()); }
+            },
+            constants::OP_INSTANCE_OF => {
+                if let Some(it) = next_short(bytecode)
+                    && let ConstantEntry::Class(name) = &const_pool[it as usize - 1]{
+                    result.push((idx, Instruction::InstanceOf(name.clone())));
+                }else{ return Err("Missing short operand of instanceof or invalid const pool index".to_owned()); }
+            },
 
             constants::OP_MONITOR_ENTER => result.push((idx, Instruction::MonitorEnter)),
             constants::OP_MONITOR_EXIT => result.push((idx, Instruction::MonitorExit)),
