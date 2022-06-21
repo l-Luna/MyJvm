@@ -13,9 +13,9 @@ fn main() {
     match runtime::class::load_class("run/Basics".to_owned()){
         Ok(o) => {
             println!("{:?}", o);
-            for m in o.methods{
+            for m in &o.methods{
                 if m.name == "main2"{
-                    let result = runtime::interpreter::execute(&m, vec![]);
+                    let result = runtime::interpreter::execute(&o, &m, vec![]);
                     println!("got {:?}", result);
                 }
             }

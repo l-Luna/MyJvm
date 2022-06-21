@@ -5,3 +5,5 @@ pub mod jvalue;
 pub mod classes;
 pub mod class;
 pub mod objects;
+
+pub mod native_impls;

@@ -89,7 +89,7 @@ pub fn add_class(class: Class, loader_name: String){
     // TODO: don't repeat this (get().unwrap().ensure().unwrap()) as much
     let class = get_or_create_bt_class(class_desc).unwrap().ensure_loaded().unwrap();
     if let Some(clinit) = class.static_method(&constants::clinit()){
-        interpreter::execute(clinit, Vec::new());
+        interpreter::execute(&class, clinit, Vec::new());
     }
 }
 

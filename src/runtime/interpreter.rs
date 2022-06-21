@@ -1,6 +1,7 @@
 use parser::classfile_structs::{Code, Instruction};
 use runtime::jvalue::JValue;
-use runtime::objects;
+use runtime::{native_impls, objects};
+use runtime::class::Class;
 
 use crate::parser::classfile_structs::ConstantEntry;
 
@@ -14,16 +15,16 @@ pub enum MethodResult{
     MachineError(&'static str) // TODO: replace with panics after classfile verification works
 }
 
-pub fn execute(method: &Method, args: Vec<JValue>) -> MethodResult{
+pub fn execute(owner: &Class, method: &Method, args: Vec<JValue>) -> MethodResult{
     println!("Executing {}", method.name.clone());
     match &method.code{
-        class::MethodImpl::Bytecode(bytecode) => interpret(method, args, bytecode),
-        class::MethodImpl::Native => todo!(),
+        class::MethodImpl::Bytecode(bytecode) => interpret(owner, method, args, bytecode),
+        class::MethodImpl::Native => native_impls::run_builtin_native(&owner.name, &format!("{}{}", method.name, method.descriptor()), args),
         class::MethodImpl::Abstract => todo!(),
     }
 }
 
-pub fn interpret(method: &Method, args: Vec<JValue>, code: &Code) -> MethodResult{
+pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code) -> MethodResult{
     let mut i: usize = 0;
     let mut stack: Vec<JValue> = Vec::with_capacity(code.max_stack as usize);
     let mut locals: Vec<Option<JValue>> = Vec::with_capacity(code.max_locals as usize);
@@ -219,7 +220,7 @@ pub fn interpret(method: &Method, args: Vec<JValue>, code: &Code) -> MethodResul
                     for _ in 0..num_params{
                         args.push(stack.pop().expect("Tried to execute invokevirtual with insufficient arguments"));
                     }
-                    let result = execute(&target, args);
+                    let result = execute(owner, &target, args);
                     // TODO: exception handling
                     match result{
                         MethodResult::FinishWithValue(v) => stack.push(v),
@@ -234,8 +235,8 @@ pub fn interpret(method: &Method, args: Vec<JValue>, code: &Code) -> MethodResul
                 }
             },
             Instruction::InvokeStatic(s) => {
-                let owner = &s.owner_name;
-                let class = heap::get_or_create_bt_class(format!("L{};", owner)).unwrap().ensure_loaded().unwrap();
+                let owner_name = &s.owner_name;
+                let class = heap::get_or_create_bt_class(format!("L{};", owner_name)).unwrap().ensure_loaded().unwrap();
                 if let Some(target) = class.static_method(&s.name_and_type){
                     // TODO: dedup code
                     let num_params = target.parameters.len();
@@ -243,7 +244,7 @@ pub fn interpret(method: &Method, args: Vec<JValue>, code: &Code) -> MethodResul
                     for _ in 0..num_params{
                         args.push(stack.pop().expect("Tried to execute invokestatic with insufficient arguments"));
                     }
-                    let result = execute(&target, args);
+                    let result = execute(owner, &target, args);
                     match result{
                         MethodResult::FinishWithValue(v) => stack.push(v),
                         MethodResult::Finish => {},
