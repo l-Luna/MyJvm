@@ -211,15 +211,15 @@ pub fn interpret(method: &Method, args: Vec<JValue>, code: &Code) -> MethodResul
                 let receiver = stack.pop();
                 if let Some(JValue::Reference(Some(r))) = receiver{
                     let class = &r.deref().class;
-                    let method = class.virtual_method(&target.name_and_type)
+                    let target = class.virtual_method(&target.name_and_type)
                         .expect("Tried to execute invokevirtual for method that doesn't exist on receiver");
-                    let num_params = method.parameters.len();
+                    let num_params = target.parameters.len();
                     let mut args = Vec::with_capacity(num_params + 1);
                     args.push(receiver.unwrap().clone());
                     for _ in 0..num_params{
                         args.push(stack.pop().expect("Tried to execute invokevirtual with insufficient arguments"));
                     }
-                    let result = execute(&method, args);
+                    let result = execute(&target, args);
                     // TODO: exception handling
                     match result{
                         MethodResult::FinishWithValue(v) => stack.push(v),
@@ -232,7 +232,29 @@ pub fn interpret(method: &Method, args: Vec<JValue>, code: &Code) -> MethodResul
                 }else{
                     return MethodResult::MachineError("Tried to execute invokevirtual without object on stack");
                 }
-            }
+            },
+            Instruction::InvokeStatic(s) => {
+                let owner = &s.owner_name;
+                let class = heap::get_or_create_bt_class(format!("L{};", owner)).unwrap().ensure_loaded().unwrap();
+                if let Some(target) = class.static_method(&s.name_and_type){
+                    // TODO: dedup code
+                    let num_params = target.parameters.len();
+                    let mut args = Vec::with_capacity(num_params);
+                    for _ in 0..num_params{
+                        args.push(stack.pop().expect("Tried to execute invokestatic with insufficient arguments"));
+                    }
+                    let result = execute(&target, args);
+                    match result{
+                        MethodResult::FinishWithValue(v) => stack.push(v),
+                        MethodResult::Finish => {},
+                        MethodResult::Throw(e) => return MethodResult::Throw(e),
+                        MethodResult::MachineError(e) => return MethodResult::MachineError(e),
+                    }
+                }else{
+                    // TODO: should throw instead?
+                    return MethodResult::MachineError("Tried to execute invokestatic for a method that doesn't exist");
+                }
+            },
 
             other => {
                 panic!("Unhandled instruction: {:?}", other);
