@@ -1,4 +1,5 @@
 use parser::classfile_structs::{Code, Instruction};
+use parser::classfile_structs::Instruction::AReturn;
 use runtime::jvalue::JValue;
 use runtime::objects;
 
@@ -11,7 +12,7 @@ pub enum MethodResult{
     FinishWithValue(JValue),
     Finish,
     Throw(JValue),
-    MachineError(&'static str)
+    MachineError(&'static str) // TODO: replace with panics after classfile verification works
 }
 
 pub fn execute(method: &Method, args: Vec<JValue>) -> MethodResult{
@@ -207,7 +208,30 @@ pub fn interpret(method: &Method, args: Vec<JValue>, code: &Code) -> MethodResul
             }
             
             Instruction::InvokeVirtual(target) => {
-                // pop all necessary values, resolve the class reference, and invoke!
+                let receiver = stack.pop();
+                if let Some(JValue::Reference(Some(r))) = receiver{
+                    let class = &r.deref().class;
+                    let method = class.virtual_method(&target.name_and_type)
+                        .expect("Tried to execute invokevirtual for method that doesn't exist on receiver");
+                    let num_params = method.parameters.len();
+                    let mut args = Vec::with_capacity(num_params + 1);
+                    args.push(receiver.unwrap().clone());
+                    for _ in 0..num_params{
+                        args.push(stack.pop().expect("Tried to execute invokevirtual with insufficient arguments"));
+                    }
+                    let result = execute(&method, args);
+                    // TODO: exception handling
+                    match result{
+                        MethodResult::FinishWithValue(v) => stack.push(v),
+                        MethodResult::Finish => {},
+                        MethodResult::Throw(e) => return MethodResult::Throw(e),
+                        MethodResult::MachineError(e) => return MethodResult::MachineError(e),
+                    }
+                }else if let Some(JValue::Reference(None)) = receiver{
+                    return MethodResult::Throw(JValue::Reference(None)); // TODO: synthesize NPEs
+                }else{
+                    return MethodResult::MachineError("Tried to execute invokevirtual without object on stack");
+                }
             }
 
             other => {
