@@ -15,6 +15,7 @@ pub enum MethodResult{
 }
 
 pub fn execute(method: &Method, args: Vec<JValue>) -> MethodResult{
+    println!("Executing {}", method.name.clone());
     match &method.code{
         class::MethodImpl::Bytecode(bytecode) => interpret(method, args, bytecode),
         class::MethodImpl::Native => todo!(),
@@ -26,7 +27,7 @@ pub fn interpret(method: &Method, args: Vec<JValue>, code: &Code) -> MethodResul
     let mut i: usize = 0;
     let mut stack: Vec<JValue> = Vec::with_capacity(code.max_stack as usize);
     let mut locals: Vec<Option<JValue>> = Vec::with_capacity(code.max_locals as usize);
-    locals.append(&mut args.iter().cloned().map(Option::Some).collect());
+    locals.append(&mut args.iter().cloned().map(Some).collect());
     locals.resize(code.max_locals as usize, None);
     while i < code.bytecode.len(){
         let mut was_jump = false;

@@ -1,3 +1,4 @@
+use parser::classfile_structs::NameAndType;
 
 // Shared flags
 pub const ACC_PUBLIC: u16          = 0x0001;
@@ -278,6 +279,17 @@ pub const OP_IF_NONNULL: u8              = 199;
 pub const OP_BREAKPOINT: u8              = 202;
 pub const OP_FREE_1: u8                  = 254;
 pub const OP_FREE_2: u8                  = 255;
+
+// Descriptors
+pub const CL_INIT_NAME: &str            = "<clinit>";
+pub const CL_INIT_DESC: &str            = "()V";
+
+pub fn clinit() -> NameAndType{
+    return NameAndType{
+        name: CL_INIT_NAME.to_owned(),
+        descriptor: CL_INIT_DESC.to_owned()
+    };
+}
 
 // Misc
 pub const BOOTSTRAP_LOADER_NAME: &str   = "java.lang.ClassLoader";

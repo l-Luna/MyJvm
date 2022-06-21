@@ -1,5 +1,6 @@
 use std::{sync::{RwLock, Arc}, collections::HashMap, hash::Hash};
 use std::fmt::Debug;
+use runtime::interpreter;
 use runtime::jvalue::JValue;
 
 use crate::{constants, parser::{classfile_structs::Classfile, classfile_parser}};
@@ -81,9 +82,15 @@ pub fn gc(){
 // Class handling
 // TODO: move to classes.rs?
 
-/// Adds a loaded class under the given classloader.
+/// Adds a loaded class under the given classloader, and invokes its static initializer.
 pub fn add_class(class: Class, loader_name: String){
-    unsafe{ add_to_map_list(loader_name, Arc::new(class), &LOADED_CLASSES); }
+    let class_desc = class.descriptor.clone();
+    unsafe{ add_to_map_list(loader_name.clone(), Arc::new(class), &LOADED_CLASSES); }
+    // TODO: don't repeat this (get().unwrap().ensure().unwrap()) as much
+    let class = get_or_create_bt_class(class_desc).unwrap().ensure_loaded().unwrap();
+    if let Some(clinit) = class.static_method(&constants::clinit()){
+        interpreter::execute(clinit, Vec::new());
+    }
 }
 
 /// Returns a "snapshot" of the classes loaded by the given loader.

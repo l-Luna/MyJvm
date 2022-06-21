@@ -30,6 +30,15 @@ impl Class{
         return false;
     }
 
+    pub fn static_method(&self, target: &NameAndType) -> Option<&Method>{
+        for method in &self.methods{
+            if method.is_static && method.name == target.name && method.descriptor() == target.descriptor{
+                return Some(method);
+            }
+        }
+        return None;
+    }
+
     pub fn virtual_method(&self, target: &NameAndType) -> Option<&Method>{
         for method in &self.methods{
             if method.name == target.name && method.descriptor() == target.descriptor {
