@@ -3,7 +3,7 @@ use runtime::heap;
 
 use super::{heap::JRef, class::ClassRef};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum JValue{
     Int(i32), // and other int-likes
     Long(i64),

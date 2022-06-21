@@ -1,5 +1,4 @@
 use parser::classfile_structs::{Code, Instruction};
-use parser::classfile_structs::Instruction::AReturn;
 use runtime::jvalue::JValue;
 use runtime::objects;
 

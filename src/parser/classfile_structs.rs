@@ -1,6 +1,6 @@
-use std::iter::Map;
+use std::collections::HashMap;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Classfile{
     pub major_ver: u16,
     pub minor_ver: u16,
@@ -45,7 +45,7 @@ pub enum RawConstantEntry {
 }
 
 // Ordered by tag number, uses actual useful values
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ConstantEntry{
     Utf8(String),
     Integer(i32),
@@ -68,23 +68,23 @@ pub enum ConstantEntry{
     Package(String)
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum MemberKind {
     Field, Method, InterfaceMethod
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum DynamicReferenceType{
     GetField, GetStatic, PutField, PutStatic, InvokeVirtual, InvokeStatic, InvokeSpecial, NewInvokeSpecial, InvokeInterface
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct NameAndType{ pub name: String, pub descriptor: String }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct MemberRef{ pub kind: MemberKind, pub owner_name: String, pub name_and_type: NameAndType }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Dynamic{ pub bootstrap: NameAndType, pub value: NameAndType }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct FieldInfo{
     pub flags: u16,
     pub name: String,
@@ -92,7 +92,7 @@ pub struct FieldInfo{
     pub attributes: Vec<Attribute>
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct MethodInfo{
     pub flags: u16,
     pub name: String,
@@ -100,14 +100,14 @@ pub struct MethodInfo{
     pub attributes: Vec<Attribute>
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct RecordComponentInfo{
     pub name: String,
     pub desc: String,
     pub attributes: Vec<Attribute>
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Attribute{ // ordered by location
     // Classfile attributes
     SourceFile(String),
@@ -146,13 +146,13 @@ pub enum Attribute{ // ordered by location
     RuntimeVisibleTypeAnnotations{ /* TODO */ }, RuntimeInvisibleTypeAnnotations{ /* TODO */ },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct LineNumberMapping{
     pub bytecode_idx: u16,
     pub line_number: u16
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct LocalVariableEntry{
     pub start_idx: u16,
     pub end_idx: u16,
@@ -162,26 +162,26 @@ pub struct LocalVariableEntry{
     pub lv_idx: u16
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ParameterInfo{
     pub name: Option<String>,
     pub flags: u16
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Annotation{
     pub class: String,
-    pub data: Map<String, Vec<u8>> // TODO: annotation parsing
+    pub data: HashMap<String, Vec<u8>> // TODO: annotation parsing
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct BootstrapEntry{
     pub ref_type: DynamicReferenceType,
     pub method: MemberRef,
     pub args: Vec<ConstantEntry>
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ExceptionHandler{
     pub start_idx: u16,
     pub end_idx: u16,
@@ -189,7 +189,7 @@ pub struct ExceptionHandler{
     pub catch_type: Option<String>
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Code{
     pub max_stack: u16,
     pub max_locals: u16,
@@ -198,7 +198,7 @@ pub struct Code{
     pub attributes: Vec<Attribute>
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 // only supported ones rn
 pub enum Instruction{
     IConst(i32), LConst(i64), FConst(f32), DConst(f64), AConstNull,

@@ -2,7 +2,7 @@ use std::sync::Arc;
 use crate::{parser::{classfile_structs::{Code, Classfile, NameAndType, FieldInfo, MethodInfo, Attribute}, classfile_parser}, constants};
 use super::{classes::{ClassLoader, self}, jvalue::JValue, heap};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Class{
     pub name: String,           // a.b.C
     pub descriptor: String,     // La/b/C; or I or [I...
@@ -64,14 +64,14 @@ impl Class{
 
 pub type ClassRef = Arc<Class>;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum MaybeClass{
     Class(ClassRef),
     Unloaded(String), // TODO: privatise ctor? need to ensure classfile is created first
     UnloadedArray(String)
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Field{
     pub name: String,
     pub type_class: MaybeClass, // TODO: does a field of the same type as the class create cycles?
@@ -79,7 +79,7 @@ pub struct Field{
     pub is_static: bool
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Method{
     pub name: String,
     pub parameters: Vec<MaybeClass>,
@@ -116,12 +116,12 @@ impl Method{
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Visibility{
     Public, Local, Protected, Private
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum MethodImpl{
     Bytecode(Code), Native, Abstract
 }

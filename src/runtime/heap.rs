@@ -1,4 +1,5 @@
 use std::{sync::{RwLock, Arc}, collections::HashMap, hash::Hash};
+use std::fmt::Debug;
 use runtime::jvalue::JValue;
 
 use crate::{constants, parser::{classfile_structs::Classfile, classfile_parser}};
@@ -14,7 +15,7 @@ use super::{jvalue::JObject, class::{ClassRef, Class, MaybeClass, self}, classes
 // References are indexes into the "active" list.
 // On GC, reachable objects are moved to the "inactive", and the two lists are swapped.
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct JRef{
     heap_idx: usize // used in `get`
 }
@@ -202,7 +203,7 @@ fn desc_to_name(desc: String) -> Result<String, String>{
     }
 }
 
-fn add_to_map_list<K, V>(key: K, value: V, map_list: &Option<RwLock<HashMap<K, Vec<V>>>>) where K: Eq + Clone + Hash{
+fn add_to_map_list<K, V>(key: K, value: V, map_list: &Option<RwLock<HashMap<K, Vec<V>>>>) where K: Eq + Clone + Hash, V: PartialEq + Debug{
     let rw = map_list.as_ref().unwrap();
     let loaded_classes = &mut *rw.write().unwrap();
     let loader_classes = if loaded_classes.contains_key(&key){
@@ -211,6 +212,9 @@ fn add_to_map_list<K, V>(key: K, value: V, map_list: &Option<RwLock<HashMap<K, V
         loaded_classes.insert(key.clone(), Vec::with_capacity(1));
         loaded_classes.get_mut(&key).unwrap()
     };
+    if loader_classes.contains(&value){
+        panic!("Entry already exists: {:?}", &value);
+    }
     loader_classes.push(value);
 }
 
