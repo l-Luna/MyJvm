@@ -188,12 +188,16 @@ pub fn interpret(method: &Method, args: Vec<JValue>, code: &Code) -> MethodResul
             Instruction::Return => return MethodResult::Finish,
 
             Instruction::GetField(target) => {
-                // TODO: this is wrong! should not try to load class every time, use pre-existing one
-                let owner = class::load_class(target.owner_name.clone()).expect("Could not load field owner");
+                let owner = heap::get_or_create_bt_class(format!("L{};", target.owner_name.clone()))
+                    .expect("Could not load field owner")
+                    .ensure_loaded()
+                    .expect("Could not load field owner");
                 let mut pushed = false;
-                for f in owner.static_fields{
+                for f in &owner.static_fields{
                     if f.0.name == target.name_and_type.name{
-                        stack.insert(0, f.1.clone());
+                        let j_value = f.1.clone();
+                        println!("got {:?} from field {:?}", j_value, &target.name_and_type);
+                        stack.insert(0, j_value);
                         pushed = true;
                     }
                 }
