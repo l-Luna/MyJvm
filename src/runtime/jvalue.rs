@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use runtime::heap;
 
 use super::{heap::JRef, class::ClassRef};
 
@@ -17,7 +18,13 @@ pub enum JValue{
 #[derive(Debug)]
 pub struct JObject{
     pub class: ClassRef,
-    pub fields: HashMap<String, JValue>
+    pub data: JObjectData
+}
+
+#[derive(Debug)]
+pub enum JObjectData{
+    Fields(HashMap<String, JValue>),
+    Array(Vec<JValue>)
 }
 
 impl JValue{
@@ -30,13 +37,25 @@ impl JValue{
             JValue::Second => false,
             JValue::Reference(None) => to.descriptor.len() > 0, // any non-primitive
             JValue::Reference(Some(r)) => r.deref().class.assignable_to(&to),
-        }
+        };
+    }
+
+    pub fn class(&self) -> ClassRef{
+        return match self{
+            JValue::Int(_) => heap::bt_class_by_desc("I".to_owned()).unwrap(),
+            JValue::Long(_) => heap::bt_class_by_desc("J".to_owned()).unwrap(),
+            JValue::Float(_) => heap::bt_class_by_desc("F".to_owned()).unwrap(),
+            JValue::Double(_) => heap::bt_class_by_desc("D".to_owned()).unwrap(),
+            JValue::Second => { panic!("Tried to get the class of a long second value!") },
+            JValue::Reference(None) => heap::bt_class_by_desc("Ljava/lang/Object;".to_owned()).unwrap(),
+            JValue::Reference(Some(r)) => r.deref().class.clone(),
+        };
     }
 
     pub fn default_value_for(desc: &str) -> JValue{
         if desc.starts_with("L") || desc.starts_with("["){
             return JValue::Reference(None);
-        }
+        };
         return match desc{
             "Z" | "B" | "S" | "C" | "I" => JValue::Int(0),
             "J" => JValue::Long(0),

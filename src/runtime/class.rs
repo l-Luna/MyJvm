@@ -97,6 +97,10 @@ impl MaybeClass{
             MaybeClass::UnloadedArray(of) => "[".to_owned() + &of.clone()
         };
     }
+
+    pub fn ensure_loaded(&self) -> Result<ClassRef, String> {
+        return heap::ensure_loaded(&self);
+    }
 }
 
 impl Method{
@@ -178,14 +182,14 @@ fn binary_to_fq_name(binary_name: String) -> String{
 }
 
 fn flags_to_visibility(flags: u16) -> Visibility{
-    if constants::bit_set(flags, constants::ACC_PUBLIC){
-        return Visibility::Public;
+    return if constants::bit_set(flags, constants::ACC_PUBLIC){
+        Visibility::Public
     }else if constants::bit_set(flags, constants::ACC_PROTECTED){
-        return Visibility::Public;
+        Visibility::Public
     }else if constants::bit_set(flags, constants::ACC_PRIVATE){
-        return Visibility::Private;
+        Visibility::Private
     }else{
-        return Visibility::Local;
+        Visibility::Local
     }
 }
 

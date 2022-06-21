@@ -1,4 +1,5 @@
 use std::{sync::{RwLock, Arc}, collections::HashMap, hash::Hash};
+use runtime::jvalue::JValue;
 
 use crate::{constants, parser::{classfile_structs::Classfile, classfile_parser}};
 
@@ -63,6 +64,10 @@ pub fn get(refs: &JRef) -> Arc<JObject>{
         let true_heap = rw.read().unwrap();
         return true_heap[refs.heap_idx].clone();
     }
+}
+
+pub fn add_ref(obj: JObject) -> JValue{
+    return JValue::Reference(Some(add(obj)));
 }
 
 pub fn gc(){
@@ -133,6 +138,7 @@ pub fn get_or_create_class(class_desc: String, loader: &Arc<dyn ClassLoader>) ->
                 let name = class_desc[1..].to_owned();
                 return Ok(MaybeClass::UnloadedArray(name));
             }
+            // TODO: also check primitive classes?
             if let Some(_) = classfile_by_name(loader.name(), desc_to_name(class_desc.clone())?){
                 Ok(MaybeClass::Unloaded(class_desc))
             }else{
@@ -151,34 +157,36 @@ pub fn get_or_create_bt_class(class_desc: String) -> Result<MaybeClass, String>{
 }
 
 // TODO: handle user classloaders
-pub fn ensure_loaded(class: MaybeClass) -> Result<ClassRef, String>{
+pub fn ensure_loaded(class: &MaybeClass) -> Result<ClassRef, String>{
     match class{
-        MaybeClass::Class(c) => Ok(c),
+        MaybeClass::Class(c) => Ok(c.clone()),
         MaybeClass::Unloaded(desc) => {
             // first check if the class has already been loaded
             if let Some(c) = bt_class_by_desc(desc.clone()){
                 return Ok(c);
             }
             // otherwise create and save it
-            let class = class::load_class(desc.clone())?;
+            let class = class::load_class(desc_to_name(desc.clone())?)?;
             add_bt_class(class);
-            return Ok(bt_class_by_desc(desc).unwrap());
+            return Ok(bt_class_by_desc(desc.clone()).unwrap());
         },
         // TODO: cache array classes?
-        MaybeClass::UnloadedArray(comp_desc) => Ok(Arc::new(classes::array_class(&ensure_loaded(get_or_create_bt_class(comp_desc)?)?))),
+        MaybeClass::UnloadedArray(comp_desc) => Ok(Arc::new(
+            classes::array_class(&ensure_loaded(&get_or_create_bt_class(comp_desc.clone())?)?)
+        )),
     }
 }
 
 // implementation
 
 fn desc_to_name(desc: String) -> Result<String, String>{
-    if desc.starts_with("L") && desc.ends_with(";"){
-        return Ok(desc[1..desc.len() - 1].to_string());
+    return if desc.starts_with("L") && desc.ends_with(";"){
+        Ok(desc[1..desc.len() - 1].to_string())
     }else if desc.starts_with("["){
-        return Ok(desc_to_name(desc[1..].to_owned())? + "[]");
+        Ok(desc_to_name(desc[1..].to_owned())? + "[]")
     }else{
         // sure
-        return match desc.chars().nth(0){
+        match desc.chars().nth(0){
             None => Err("Invalid descriptor of length 0".to_owned()),
             Some('Z') => Ok("boolean".to_owned()),
             Some('B') => Ok("byte".to_owned()),

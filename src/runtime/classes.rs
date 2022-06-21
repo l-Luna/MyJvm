@@ -1,6 +1,4 @@
 use std::{path, fs, sync::RwLock, collections::HashMap, io::Read};
-use std::sync::Arc;
-
 use crate::constants;
 
 use super::{class::{ClassRef, Class}, heap::{JRef, self}};
@@ -44,7 +42,7 @@ impl ClassLoader for BootstrapLoader{
     }
     fn load(&self, classname: &str) -> Vec<u8> {
         unsafe{
-            // try platform classes first
+            // try platform classes
             let rw = JAVA_BASE_CLASSES.as_ref().unwrap();
             let class_data = &mut *rw.write().unwrap();
             if class_data.contains_key(classname){
@@ -54,10 +52,10 @@ impl ClassLoader for BootstrapLoader{
         // try relative path
         // TODO: better error reporting
         let as_path = format!("./{}.class", classname);
-        let path = std::path::absolute(std::path::Path::new(&as_path)).unwrap();
-        let mut file = std::fs::File::open(path).unwrap();
+        let path = path::absolute(path::Path::new(&as_path)).unwrap();
+        let mut file = fs::File::open(&path).expect(&format!("Could not find user class at {:?}", &path));
         let mut buffer = Vec::new();
-        file.read_to_end(&mut buffer);
+        file.read_to_end(&mut buffer).expect("Could not read user class file data");
         return buffer;
     }
 }

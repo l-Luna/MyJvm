@@ -1,5 +1,6 @@
-use parser::classfile_structs::{Code, MethodInfo, Instruction};
+use parser::classfile_structs::{Code, Instruction};
 use runtime::jvalue::JValue;
+use runtime::objects;
 
 use crate::parser::classfile_structs::ConstantEntry;
 
@@ -15,9 +16,9 @@ pub enum MethodResult{
 
 pub fn execute(method: &Method, args: Vec<JValue>) -> MethodResult{
     match &method.code{
-        super::class::MethodImpl::Bytecode(bytecode) => interpret(method, args, bytecode),
-        super::class::MethodImpl::Native => todo!(),
-        super::class::MethodImpl::Abstract => todo!(),
+        class::MethodImpl::Bytecode(bytecode) => interpret(method, args, bytecode),
+        class::MethodImpl::Native => todo!(),
+        class::MethodImpl::Abstract => todo!(),
     }
 }
 
@@ -53,10 +54,13 @@ pub fn interpret(method: &Method, args: Vec<JValue>, code: &Code) -> MethodResul
             Instruction::Ldc(c) => match c{
                 ConstantEntry::Integer(i) => {
                     stack.insert(0, JValue::Int(*i));
-                }
+                },
                 ConstantEntry::Long(l) => {
                     stack.insert(0, JValue::Long(*l));
                     stack.insert(1, JValue::Second);
+                },
+                ConstantEntry::StringConst(s) => {
+                    stack.insert(0, heap::add_ref(objects::synthesize_string(s)));
                 }
                 _ => { panic!("Possibly unhandled or invalid constant: {:?}", c) }
             }
