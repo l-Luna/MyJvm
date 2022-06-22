@@ -2,8 +2,7 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
-use runtime::class::{ClassRef, MaybeClass};
-use runtime::{classes, heap};
+use runtime::{class::ClassRef, classes, heap};
 use runtime::jvalue::{JObject, JObjectData, JValue};
 
 pub fn synthesize_string(string: &String) -> JObject{
