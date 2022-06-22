@@ -284,10 +284,20 @@ pub const OP_FREE_2: u8                  = 255;
 pub const CL_INIT_NAME: &str            = "<clinit>";
 pub const CL_INIT_DESC: &str            = "()V";
 
+pub const SYSTEM_INIT_1_NAME: &str      = "initPhase1";
+pub const SYSTEM_INIT_1_DESC: &str      = "()V";
+
 pub fn clinit() -> NameAndType{
     return NameAndType{
         name: CL_INIT_NAME.to_owned(),
         descriptor: CL_INIT_DESC.to_owned()
+    };
+}
+
+pub fn system_init_phase_1() -> NameAndType{
+    return NameAndType{
+        name: SYSTEM_INIT_1_NAME.to_owned(),
+        descriptor: SYSTEM_INIT_1_DESC.to_owned()
     };
 }
 

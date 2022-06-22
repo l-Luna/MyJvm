@@ -86,10 +86,18 @@ pub fn gc(){
 pub fn add_class(class: Class, loader_name: String){
     let class_desc = class.descriptor.clone();
     unsafe{ add_to_map_list(loader_name.clone(), Arc::new(class), &LOADED_CLASSES); }
+    
+    // run client init
     // TODO: don't repeat this (get().unwrap().ensure().unwrap()) as much
-    let class = get_or_create_bt_class(class_desc).unwrap().ensure_loaded().unwrap();
+    let class = get_or_create_bt_class(class_desc.clone()).unwrap().ensure_loaded().unwrap();
     if let Some(clinit) = class.static_method(&constants::clinit()){
         interpreter::execute(&class, clinit, Vec::new());
+    }
+
+    // for java.lang.System: run initSystemPhase1
+    if class_desc == "Ljava/lang/System;"{
+        let init = class.static_method(&constants::system_init_phase_1()).unwrap();
+        interpreter::execute(&class, init, Vec::new());
     }
 }
 
