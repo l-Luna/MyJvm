@@ -341,8 +341,8 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code)
                     .expect("Could not link class for new instruction!");
                 stack.insert(0, objects::create_new(class));
             },
-            Instruction::ANewArray(class_name) => {
-                let class = heap::get_or_create_bt_class(format!("L{};", class_name))
+            Instruction::NewArray(class_name) => {
+                let class = heap::get_or_create_bt_class(class_name.clone())
                     .expect("Could not parse class for anewarray instruction!")
                     .ensure_loaded()
                     .expect("Could not link class for anewarray instruction!");

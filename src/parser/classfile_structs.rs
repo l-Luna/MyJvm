@@ -258,7 +258,7 @@ pub enum Instruction{
 
     ArrayLength,
 
-    New(String), NewArray(u8), ANewArray(String), MultiANewArray(String, u32),
+    New(String), NewArray(String), MultiANewArray(String, u32),
 
     CheckCast(String), InstanceOf(String),
 

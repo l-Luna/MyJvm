@@ -247,6 +247,20 @@ fn dyn_ref_index_to_type(idx: &u8) -> Result<DynamicReferenceType, String>{
     }
 }
 
+fn newarray_operand_to_descriptor(op: u8) -> String{
+    return (match op{
+        4 => "Z",
+        5 => "C",
+        6 => "F",
+        7 => "D",
+        8 => "B",
+        9 => "S",
+        10 => "I",
+        11 => "J",
+        _ => panic!("Unknown newarray array type {}!", op)
+    }).to_owned();
+}
+
 fn parse_attributes(file: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Result<Vec<Attribute>, String>{
     let Some(count) = next_short(file) else { return Err("Missing attribute count".to_owned()); };
     let mut ret: Vec<Attribute> = Vec::with_capacity(count as usize);
@@ -845,13 +859,13 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
             },
             constants::OP_NEWARRAY => {
                 if let Some(it) = next_byte(bytecode){
-                    result.push((idx, Instruction::NewArray(it)));
+                    result.push((idx, Instruction::NewArray(newarray_operand_to_descriptor(it))));
                 }else{ return Err("Missing byte operand of newarray".to_owned()); }
             },
             constants::OP_ANEWARRAY => {
                 if let Some(it) = next_short(bytecode)
                     && let ConstantEntry::Class(name) = &const_pool[it as usize - 1]{
-                    result.push((idx, Instruction::ANewArray(name.clone())));
+                    result.push((idx, Instruction::NewArray(format!("L{};", name.clone()))));
                 }else{ return Err("Missing short operand of anewarray or invalid const pool index".to_owned()); }
             },
 
