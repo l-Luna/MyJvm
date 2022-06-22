@@ -13,7 +13,10 @@ pub fn create_new(of: ClassRef) -> JValue{
 }
 
 pub fn create_new_array(of: ClassRef, length: usize) -> JValue{
-    let elements = Vec::with_capacity(length);
+    let mut elements = Vec::with_capacity(length);
+    for _ in 0..length{
+        elements.push(JValue::default_value_for(&of.descriptor));
+    }
     return heap::add_ref(JObject{
         class: of,
         data: RwLock::new(JObjectData::Array(length, elements))

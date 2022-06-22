@@ -5,7 +5,7 @@ use runtime::jvalue::JValue;
 
 use crate::{constants, parser::{classfile_structs::Classfile, classfile_parser}};
 
-use super::{jvalue::JObject, class::{ClassRef, Class, MaybeClass, self}, classes::{self, ClassLoader}};
+use super::{jvalue::JObject, class::{ClassRef, Class, MaybeClass, self}, classes::{self, ClassLoader}, interpreter::{StackTrace, MethodResult}};
 
 // TODO: use weak references everywhere (esp JRef and ClassRef)
 // and only keep objects and classes alive via the heaps
@@ -91,13 +91,23 @@ pub fn add_class(class: Class, loader_name: String){
     // TODO: don't repeat this (get().unwrap().ensure().unwrap()) as much
     let class = get_or_create_bt_class(class_desc.clone()).unwrap().ensure_loaded().unwrap();
     if let Some(clinit) = class.static_method(&constants::clinit()){
-        interpreter::execute(&class, clinit, Vec::new());
+        match interpreter::execute(&class, clinit, Vec::new(), StackTrace::new()){
+            MethodResult::FinishWithValue(_) |
+            MethodResult::Finish => { /* good */ },
+            MethodResult::Throw(e) => panic!("clinit failed: {}", e),
+            MethodResult::MachineError(e) => panic!("clinit failed: {}", e),
+        }
     }
 
     // for java.lang.System: run initSystemPhase1
     if class_desc == "Ljava/lang/System;"{
         let init = class.static_method(&constants::system_init_phase_1()).unwrap();
-        interpreter::execute(&class, init, Vec::new());
+        match interpreter::execute(&class, init, Vec::new(), StackTrace::new()){
+            MethodResult::FinishWithValue(_) |
+            MethodResult::Finish => { /* good */ },
+            MethodResult::Throw(e) => panic!("System.initSystemPhase1 failed: {}", e),
+            MethodResult::MachineError(e) => panic!("System.initSystemPhase1 failed: {}", e),
+        }
     }
 }
 

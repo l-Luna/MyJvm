@@ -3,6 +3,8 @@
 #![feature(if_let_guard)]
 #![feature(let_chains)]
 
+use crate::runtime::interpreter::StackTrace;
+
 mod constants;
 mod runtime;
 mod parser;
@@ -15,7 +17,7 @@ fn main() {
             println!("{:?}", o);
             for m in &o.methods{
                 if m.name == "main2"{
-                    let result = runtime::interpreter::execute(&o, &m, vec![]);
+                    let result = runtime::interpreter::execute(&o, &m, vec![], StackTrace::new());
                     println!("got {:?}", result);
                 }
             }

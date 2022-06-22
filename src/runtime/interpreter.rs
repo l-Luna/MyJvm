@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use parser::classfile_structs::{Code, Instruction};
 use runtime::jvalue::JValue;
 use runtime::{native_impls, objects};
@@ -11,20 +13,73 @@ use super::{jvalue::JObjectData, class::{Method, self}, heap::{JRef, self}};
 pub enum MethodResult{
     FinishWithValue(JValue),
     Finish,
-    Throw(JValue),
+    Throw(StackTrace), // TODO: just use JRef
     MachineError(&'static str) // TODO: replace with panics after classfile verification works
 }
 
-pub fn execute(owner: &Class, method: &Method, args: Vec<JValue>) -> MethodResult{
+// Stack traces
+
+#[derive(Debug, Clone)]
+pub struct StackTrace(Vec<StackTraceEntry>);
+
+impl StackTrace{
+    pub fn new() -> Self{
+        return StackTrace(Vec::new());
+    }
+}
+
+impl std::ops::Deref for StackTrace{
+    type Target = Vec<StackTraceEntry>;
+
+    fn deref(&self) -> &Self::Target {
+        return &self.0;
+    }
+}
+
+impl std::ops::DerefMut for StackTrace{
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        return &mut self.0;
+    }
+}
+
+impl std::fmt::Display for StackTrace{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result{
+        for entry in self.deref(){
+            write!(f, "\tat {}{}", entry.class_name, entry.method_name)?;
+            if let Some(l) = entry.line_number{
+                write!(f, ":{}", l)?;
+            }
+            write!(f, "\n")?;
+        }
+        return Ok(());
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct StackTraceEntry{
+    class_name: String,
+    method_name: String,
+    line_number: Option<u16>
+}
+
+impl StackTraceEntry {
+    pub fn new(class_name: String, method_name: String, line_number: Option<u16>) -> Self{
+        return Self{ class_name, method_name, line_number };
+    }
+}
+
+// Method execution
+
+pub fn execute(owner: &Class, method: &Method, args: Vec<JValue>, trace: StackTrace) -> MethodResult{
     println!("Executing {} in {}", &method.name, &owner.name);
     match &method.code{
-        class::MethodImpl::Bytecode(bytecode) => interpret(owner, method, args, bytecode),
+        class::MethodImpl::Bytecode(bytecode) => interpret(owner, method, args, bytecode, trace),
         class::MethodImpl::Native => native_impls::run_builtin_native(&owner.name, &format!("{}{}", method.name, method.descriptor()), args),
         class::MethodImpl::Abstract => todo!(),
     }
 }
 
-pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code) -> MethodResult{
+pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code, trace: StackTrace) -> MethodResult{
     let mut i: usize = 0;
     let mut stack: Vec<JValue> = Vec::with_capacity(code.max_stack as usize);
     let mut locals: Vec<Option<JValue>> = Vec::with_capacity(code.max_locals as usize);
@@ -118,23 +173,23 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code)
             },
 
             Instruction::CAStore => {
-                if let Some(JValue::Reference(array_ref)) = stack.get(0)
-                && let Some(JValue::Int(idx)) = stack.get(1)
-                && let Some(JValue::Int(value)) = stack.get(2){
+                if let Some(JValue::Reference(array_ref)) = stack.get(2)
+                && let Some(JValue::Int(array_idx)) = stack.get(1)
+                && let Some(JValue::Int(value)) = stack.get(0){
                     let array_ref: &Option<JRef> = array_ref; // fix IDE highlighting
                     if let Some(array_ref) = array_ref{
                         let array = array_ref.deref();
                         if let Ok(mut write) = array.data.write(){
                             if let JObjectData::Array(size, values) = &mut *write{
-                                if *idx < 0 || *idx >= (*size as i32){
-                                    return MethodResult::Throw(JValue::Reference(None));
+                                if *array_idx < 0 || *array_idx >= (*size as i32){
+                                    return MethodResult::Throw(update_trace(&trace, *idx, method, owner));
                                 }
-                                let idx = *idx as usize;
-                                *values = values.splice(idx..(idx + 1), [JValue::Int(*value)]).collect();
+                                let idx = *array_idx as usize;
+                                set_and_pad(values, idx, JValue::Int(*value), JValue::Int(0));
                             }
                         }; //ah. fun.
                     }else{
-                        return MethodResult::Throw(JValue::Reference(None));
+                        return MethodResult::Throw(update_trace(&trace, *idx, method, owner));
                     }
 
                     stack.remove(0); stack.remove(0); stack.remove(0);
@@ -297,7 +352,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code)
                     for _ in 0..num_params{
                         args.push(stack.pop().expect("Tried to execute invokevirtual with insufficient arguments"));
                     }
-                    let result = execute(owner, &target, args);
+                    let result = execute(owner, &target, args, update_trace(&trace, *idx, method, owner));
                     // TODO: exception handling
                     match result{
                         MethodResult::FinishWithValue(v) => stack.push(v),
@@ -306,7 +361,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code)
                         MethodResult::MachineError(e) => return MethodResult::MachineError(e),
                     }
                 }else if let Some(JValue::Reference(None)) = receiver{
-                    return MethodResult::Throw(JValue::Reference(None)); // TODO: synthesize NPEs
+                    return MethodResult::Throw(update_trace(&trace, *idx, method, owner));
                 }else{
                     return MethodResult::MachineError("Tried to execute invokevirtual without object on stack");
                 }
@@ -321,7 +376,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code)
                     for _ in 0..num_params{
                         args.push(stack.pop().expect("Tried to execute invokestatic with insufficient arguments"));
                     }
-                    let result = execute(owner, &target, args);
+                    let result = execute(owner, &target, args, update_trace(&trace, *idx, method, owner));
                     match result{
                         MethodResult::FinishWithValue(v) => stack.push(v),
                         MethodResult::Finish => {},
@@ -345,7 +400,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code)
                     for _ in 0..num_params{
                         args.push(stack.pop().expect("Tried to execute invokespecial with insufficient arguments"));
                     }
-                    let result = execute(owner, &target, args);
+                    let result = execute(owner, &target, args, update_trace(&trace, *idx, method, owner));
                     // TODO: exception handling
                     match result{
                         MethodResult::FinishWithValue(v) => stack.push(v),
@@ -354,7 +409,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code)
                         MethodResult::MachineError(e) => return MethodResult::MachineError(e),
                     }
                 }else if let Some(JValue::Reference(None)) = receiver{
-                    return MethodResult::Throw(JValue::Reference(None)); // TODO: synthesize NPEs
+                    return MethodResult::Throw(update_trace(&trace, *idx, method, owner));
                 }else{
                     return MethodResult::MachineError("Tried to execute invokespecial without object on stack");
                 }
@@ -375,7 +430,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code)
                 if let JValue::Int(l) = stack.remove(0){
                     if l < 0{
                         // TODO: synthesize NegativeArraySizeException
-                        return MethodResult::Throw(JValue::Reference(None));
+                        return MethodResult::Throw(update_trace(&trace, *idx, method, owner));
                     }
                     let l = l as usize;
                     stack.insert(0, objects::create_new_array(class, l));
@@ -402,4 +457,35 @@ fn bytecode_idx_to_instr_idx(bytecode_idx: usize, code: &Code) -> usize{
         i += 1;
     }
     panic!("invalid bytecode offset {}", bytecode_idx);
+}
+
+fn bytecode_idx_to_line_number(bytecode_idx: usize, method: &Method) -> Option<u16>{
+    let table = method.line_number_table.as_ref()?;
+    for entry in table.iter().rev(){
+        if entry.bytecode_idx < (bytecode_idx as u16){
+            return Some(entry.line_number);
+        }
+    }
+    return None;
+}
+
+fn update_trace(trace: &StackTrace, bytecode_idx: usize, method: &Method, owner: &Class) -> StackTrace{
+    let mut trace = trace.clone();
+    trace.push(StackTraceEntry::new(
+        owner.name.clone(),
+        method.name.clone(),
+        bytecode_idx_to_line_number(bytecode_idx, method)));
+    return trace;
+}
+
+fn set_and_pad<T>(list: &mut Vec<T>, idx: usize, value: T, default: T) where T: Clone{
+    if list.len() <= idx{
+        for _ in 0..(idx - list.len()){
+            list.push(default.clone());
+        }
+        list.push(value);
+    }else{
+        list.remove(idx);
+        list.insert(idx, value);
+    }
 }

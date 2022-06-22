@@ -1,5 +1,5 @@
 use std::sync::{Arc, RwLock};
-use crate::{parser::{classfile_structs::{Code, Classfile, NameAndType, FieldInfo, MethodInfo, Attribute}, classfile_parser}, constants};
+use crate::{parser::{classfile_structs::{Code, Classfile, NameAndType, FieldInfo, MethodInfo, Attribute, LineNumberMapping}, classfile_parser}, constants};
 use super::{classes::{ClassLoader, self}, jvalue::JValue, heap};
 
 #[derive(Debug)]
@@ -123,6 +123,7 @@ pub struct Method{
     pub return_type: MaybeClass,
     pub visibility: Visibility,
     pub is_static: bool,
+    pub line_number_table: Option<Vec<LineNumberMapping>>,
     pub code: MethodImpl
 }
 
@@ -261,10 +262,13 @@ fn link_method(method: MethodInfo, loader: &Arc<dyn ClassLoader>) -> Result<Meth
 
     // TODO: check Code presence & flags
     // (should be checked much earlier though)
-    let mut code: MethodImpl = MethodImpl::Abstract;
+    let mut code = MethodImpl::Abstract;
+    let mut line_number_table = None;
     for attr in method.attributes{
-        if let Attribute::Code(c) = attr {
+        if let Attribute::Code(c) = attr{
             code = MethodImpl::Bytecode(c);
+        }else if let Attribute::LineNumberTable(table) = attr{
+            line_number_table = Some(table);
         }
     }
     if constants::bit_set(method.flags, constants::METHOD_ACC_NATIVE){
@@ -277,6 +281,7 @@ fn link_method(method: MethodInfo, loader: &Arc<dyn ClassLoader>) -> Result<Meth
         return_type,
         visibility: flags_to_visibility(method.flags),
         is_static: constants::bit_set(method.flags, constants::ACC_STATIC),
+        line_number_table,
         code,
     });
 }
