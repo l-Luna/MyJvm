@@ -327,21 +327,39 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 }
             },
             Instruction::PutField(target) => {
-                let owner = heap::get_or_create_bt_class(format!("L{};", target.owner_name.clone()))
+                let field_owner = heap::get_or_create_bt_class(format!("L{};", target.owner_name.clone()))
                     .expect("Could not load field owner")
                     .ensure_loaded()
                     .expect("Could not load field owner");
                 let mut was_static = false;
                 let value = stack.remove(0);
-                for f in &owner.static_fields{
+                for f in &field_owner.static_fields{
                     let mut f = f.write().unwrap();
                     if f.0.name == target.name_and_type.name{
                         f.1 = value;
                         was_static = true;
+                        break;
                     }
                 }
                 if !was_static{
-                    todo!();
+                    let object_ref = stack.remove(0);
+                    for f in &field_owner.instance_fields{
+                        if f.name == target.name_and_type.name{
+                            if let JValue::Reference(Some(r)) = object_ref{
+                                let object = r.deref();
+                                let mut data = object.data.write().unwrap();
+                                if let JObjectData::Fields(fields) = &mut *data{
+                                    fields.insert(f.name.clone(), value);
+                                }else{
+                                    return MethodResult::MachineError("Tried to execute putfield on an array reference!");
+                                }
+                            }else if let JValue::Reference(None) = object_ref{
+                                return MethodResult::Throw(update_trace(&trace, *idx, method, owner));
+                            }else{
+                                return MethodResult::MachineError("Tried to execute putfield with non-reference on stack!")
+                            }
+                        }
+                    }
                 }
             },
             
