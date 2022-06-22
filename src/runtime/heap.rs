@@ -56,7 +56,7 @@ pub fn add(obj: JObject) -> JRef{
         let rw = HEAP_ACTIVE.as_ref().unwrap();
         let true_heap = &mut *rw.write().unwrap();
         true_heap.push(Arc::new(obj));
-        return JRef{ heap_idx: true_heap.len() };
+        return JRef{ heap_idx: true_heap.len() - 1 };
     }
 }
 

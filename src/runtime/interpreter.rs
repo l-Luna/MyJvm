@@ -136,6 +136,14 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code)
                 }
             },
 
+            Instruction::Dup => {
+                if let Some(value) = stack.get(0){
+                    stack.insert(0, value.clone());
+                }else{
+                    return MethodResult::MachineError("Tried to execute dup with empty stack");
+                }
+            },
+
             Instruction::Goto(offset) => {
                 let target = (*idx as isize) + (*offset as isize);
                 if target < 0{
@@ -272,6 +280,32 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code)
                 }else{
                     // TODO: should throw instead?
                     return MethodResult::MachineError("Tried to execute invokestatic for a method that doesn't exist");
+                }
+            },
+            Instruction::InvokeSpecial(target) => {
+                let receiver = stack.pop();
+                if let Some(JValue::Reference(Some(r))) = receiver{
+                    let class = &r.deref().class;
+                    let target = class.special_method(&target.name_and_type, target.owner_name.clone())
+                        .expect(format!("Tried to execute invokespecial for method with {:?} for {} that doesn't exist on receiver", &target.name_and_type, &target.owner_name.clone()).as_str());
+                    let num_params = target.parameters.len();
+                    let mut args = Vec::with_capacity(num_params + 1);
+                    args.push(receiver.unwrap().clone());
+                    for _ in 0..num_params{
+                        args.push(stack.pop().expect("Tried to execute invokespecial with insufficient arguments"));
+                    }
+                    let result = execute(owner, &target, args);
+                    // TODO: exception handling
+                    match result{
+                        MethodResult::FinishWithValue(v) => stack.push(v),
+                        MethodResult::Finish => {},
+                        MethodResult::Throw(e) => return MethodResult::Throw(e),
+                        MethodResult::MachineError(e) => return MethodResult::MachineError(e),
+                    }
+                }else if let Some(JValue::Reference(None)) = receiver{
+                    return MethodResult::Throw(JValue::Reference(None)); // TODO: synthesize NPEs
+                }else{
+                    return MethodResult::MachineError("Tried to execute invokespecial without object on stack");
                 }
             },
 

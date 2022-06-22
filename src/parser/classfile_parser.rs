@@ -314,7 +314,8 @@ fn parse_attribute(mut attr: Vec<u8>, const_pool: &Vec<ConstantEntry>, name: &St
         }
 
         _ => {
-            println!("Unknown attribute: {}", name);
+            //println!("Unknown attribute: {}", name);
+            // spammy
         }
     }
     return Ok(None); // unknown attributes are valid
@@ -641,7 +642,6 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
                 && let Some(lo) = next_int(bytecode)
                 && let Some(hi) = next_int(bytecode){
                     let n_jumps = (hi - lo + 1) as usize;
-                    dbg!(default_idx, lo, hi, n_jumps);
                     let mut jumps: Vec<i32> = Vec::with_capacity(n_jumps);
                     for _ in 0..n_jumps{
                         if let Some(off) = next_int(bytecode){
