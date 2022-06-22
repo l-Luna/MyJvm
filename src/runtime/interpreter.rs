@@ -128,8 +128,8 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
 
             Instruction::IStore(at) => {
                 if let Some(JValue::Int(value)) = stack.get(0){
-                    let at = *at as usize; // yeah
-                    locals = locals.splice(at..at+1, [Some(JValue::Int(*value))]).collect();
+                    let at = *at as usize;
+                    set_and_pad(&mut locals, at, Some(JValue::Int(*value)), None);
                     stack.remove(0);
                 }else{
                     return MethodResult::MachineError("Tried to execute istore without int on top of stack");
@@ -138,7 +138,8 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
             Instruction::LStore(at) => {
                 if let Some(JValue::Long(value)) = stack.get(0){
                     let at = *at as usize;
-                    locals = locals.splice(at..at+2, [Some(JValue::Long(*value)), Some(JValue::Second)]).collect();
+                    set_and_pad(&mut locals, at, Some(JValue::Long(*value)), None);
+                    set_and_pad(&mut locals, at + 1, Some(JValue::Second), None);
                     stack.remove(0); stack.remove(0); // get rid of the Second too
                 }else{
                     return MethodResult::MachineError("Tried to execute lstore without long on top of stack");
@@ -146,8 +147,8 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
             },
             Instruction::FStore(at) => {
                 if let Some(JValue::Float(value)) = stack.get(0){
-                    let at = *at as usize; // yeah
-                    locals = locals.splice(at..at+1, [Some(JValue::Float(*value))]).collect();
+                    let at = *at as usize;
+                    set_and_pad(&mut locals, at, Some(JValue::Float(*value)), None);
                     stack.remove(0);
                 }else{
                     return MethodResult::MachineError("Tried to execute fstore without float on top of stack");
@@ -156,7 +157,8 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
             Instruction::DStore(at) => {
                 if let Some(JValue::Double(value)) = stack.get(0){
                     let at = *at as usize;
-                    locals = locals.splice(at..at+2, [Some(JValue::Double(*value)), Some(JValue::Second)]).collect();
+                    set_and_pad(&mut locals, at, Some(JValue::Double(*value)), None);
+                    set_and_pad(&mut locals, at + 1, Some(JValue::Second), None);
                     stack.remove(0); stack.remove(0); // get rid of the Second too
                 }else{
                     return MethodResult::MachineError("Tried to execute dstore without double on top of stack");
@@ -165,7 +167,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
             Instruction::AStore(at) => {
                 if let Some(JValue::Reference(value)) = stack.get(0){
                     let at = *at as usize;
-                    locals = locals.splice(at..at+1, [Some(JValue::Reference(*value))]).collect();
+                    set_and_pad(&mut locals, at, Some(JValue::Reference(*value)), None);
                     stack.remove(0);
                 }else{
                     return MethodResult::MachineError("Tried to execute astore without reference on top of stack");
@@ -202,6 +204,8 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 if let Some(Some(JValue::Int(value))) = locals.get(*at as usize){
                     stack.insert(0, JValue::Int(*value));
                 }else{
+                    dbg!(*at, locals);
+                    println!("method: {}{}", &method.name, &method.descriptor());
                     return MethodResult::MachineError("Tried to execute iload without int at local variable index");
                 }
             },
@@ -341,16 +345,16 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
             },
             
             Instruction::InvokeVirtual(target) => {
-                let receiver = stack.pop();
-                if let Some(JValue::Reference(Some(r))) = receiver{
+                let receiver = stack.remove(0);
+                if let JValue::Reference(Some(r)) = receiver{
                     let class = &r.deref().class;
                     let target = class.virtual_method(&target.name_and_type)
-                        .expect("Tried to execute invokevirtual for method that doesn't exist on receiver");
+                        .expect(format!("Tried to execute invokevirtual for method with {:?} that doesn't exist on receiver of type {} inside {}.{}{}", &target, &r.deref().class.name, &owner.name, &method.name, &method.descriptor()).as_str());
                     let num_params = target.parameters.len();
                     let mut args = Vec::with_capacity(num_params + 1);
-                    args.push(receiver.unwrap().clone());
+                    args.push(receiver.clone());
                     for _ in 0..num_params{
-                        args.push(stack.pop().expect("Tried to execute invokevirtual with insufficient arguments"));
+                        args.push(stack.remove(0));
                     }
                     let result = execute(owner, &target, args, update_trace(&trace, *idx, method, owner));
                     // TODO: exception handling
@@ -360,7 +364,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                         MethodResult::Throw(e) => return MethodResult::Throw(e),
                         MethodResult::MachineError(e) => return MethodResult::MachineError(e),
                     }
-                }else if let Some(JValue::Reference(None)) = receiver{
+                }else if let JValue::Reference(None) = receiver{
                     return MethodResult::Throw(update_trace(&trace, *idx, method, owner));
                 }else{
                     return MethodResult::MachineError("Tried to execute invokevirtual without object on stack");
@@ -374,7 +378,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     let num_params = target.parameters.len();
                     let mut args = Vec::with_capacity(num_params);
                     for _ in 0..num_params{
-                        args.push(stack.pop().expect("Tried to execute invokestatic with insufficient arguments"));
+                        args.push(stack.remove(0));
                     }
                     let result = execute(owner, &target, args, update_trace(&trace, *idx, method, owner));
                     match result{
@@ -389,14 +393,14 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 }
             },
             Instruction::InvokeSpecial(target) => {
-                let receiver = stack.pop();
-                if let Some(JValue::Reference(Some(r))) = receiver{
+                let receiver = stack.remove(0);
+                if let JValue::Reference(Some(r)) = receiver{
                     let class = &r.deref().class;
                     let (target, owner) = class.special_method(&target.name_and_type, target.owner_name.clone())
                         .expect(format!("Tried to execute invokespecial for method with {:?} for {} that doesn't exist on receiver", &target.name_and_type, &target.owner_name.clone()).as_str());
                     let num_params = target.parameters.len();
                     let mut args = Vec::with_capacity(num_params + 1);
-                    args.push(receiver.unwrap().clone());
+                    args.push(receiver.clone());
                     for _ in 0..num_params{
                         args.push(stack.pop().expect("Tried to execute invokespecial with insufficient arguments"));
                     }
@@ -408,7 +412,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                         MethodResult::Throw(e) => return MethodResult::Throw(e),
                         MethodResult::MachineError(e) => return MethodResult::MachineError(e),
                     }
-                }else if let Some(JValue::Reference(None)) = receiver{
+                }else if let JValue::Reference(None) = receiver{
                     return MethodResult::Throw(update_trace(&trace, *idx, method, owner));
                 }else{
                     return MethodResult::MachineError("Tried to execute invokespecial without object on stack");
