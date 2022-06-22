@@ -5,6 +5,14 @@ use std::sync::Arc;
 use runtime::{class::ClassRef, classes, heap};
 use runtime::jvalue::{JObject, JObjectData, JValue};
 
+pub fn create_new(of: ClassRef) -> JValue{
+    let fields = HashMap::with_capacity(of.instance_fields.len());
+    return heap::add_ref(JObject{
+        class: of,
+        data: JObjectData::Fields(fields)
+    });
+}
+
 pub fn synthesize_string(string: &String) -> JObject{
     let mut fields = HashMap::with_capacity(4);
     fields.insert("value".to_owned(), array_of(wrap_ints(as_utf16(string))));
