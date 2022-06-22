@@ -36,7 +36,7 @@ impl JValue{
             JValue::Double(_) => to.descriptor == "D",
             JValue::Second => false,
             JValue::Reference(None) => to.descriptor.len() > 0, // any non-primitive
-            JValue::Reference(Some(r)) => r.deref().class.assignable_to(&to),
+            JValue::Reference(Some(r)) => r.deref().class.assignable_to(&to.descriptor),
         };
     }
 

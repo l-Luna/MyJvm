@@ -444,6 +444,23 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 }
             },
 
+            Instruction::CheckCast(to) => {
+                if let Some(v) = stack.get(0){
+                    if let JValue::Reference(r) = v{
+                        if let Some(r) = r{
+                            let class = &r.deref().class;
+                            if !class.assignable_to(&to){
+                                return MethodResult::Throw(update_trace(&trace, *idx, method, owner));
+                            }
+                        }
+                    }else{
+                        return MethodResult::MachineError("Tried to execute checkcast with non-reference on stack!");
+                    }
+                }else{
+                    return MethodResult::MachineError("Tried to execute checkcast with nothing on stack!");
+                }
+            },
+
             other => {
                 panic!("Unhandled instruction: {:?}", other);
             }

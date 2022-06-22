@@ -22,8 +22,8 @@ impl PartialEq for Class {
 }
 
 impl Class{
-    pub fn assignable_to(&self, to: &ClassRef) -> bool{
-        if self.descriptor == to.descriptor{
+    pub fn assignable_to(&self, to: &String) -> bool{
+        if &self.descriptor == to{
             return true;
         }
         if let Some(sup) = &self.super_class && sup.assignable_to(to){
