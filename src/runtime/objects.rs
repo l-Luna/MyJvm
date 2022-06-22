@@ -1,15 +1,14 @@
 // methods for building java objects (e.g. string constants)
 
 use std::collections::HashMap;
-use std::sync::Arc;
-use runtime::{class::ClassRef, classes, heap};
-use runtime::jvalue::{JObject, JObjectData, JValue};
+use std::sync::{Arc, RwLock};
+use runtime::{jvalue::{JObject, JObjectData, JValue}, class::ClassRef, classes, heap};
 
 pub fn create_new(of: ClassRef) -> JValue{
     let fields = HashMap::with_capacity(of.instance_fields.len());
     return heap::add_ref(JObject{
         class: of,
-        data: JObjectData::Fields(fields)
+        data: RwLock::new(JObjectData::Fields(fields))
     });
 }
 
@@ -17,7 +16,7 @@ pub fn create_new_array(of: ClassRef, length: usize) -> JValue{
     let elements = Vec::with_capacity(length);
     return heap::add_ref(JObject{
         class: of,
-        data: JObjectData::Array(length, elements)
+        data: RwLock::new(JObjectData::Array(length, elements))
     });
 }
 
@@ -29,7 +28,7 @@ pub fn synthesize_string(string: &String) -> JObject{
     fields.insert("hashIsZero".to_owned(), JValue::Int(1));
     return JObject{
         class: string_class(),
-        data: JObjectData::Fields(fields)
+        data: RwLock::new(JObjectData::Fields(fields))
     };
 }
 
@@ -59,7 +58,7 @@ fn array_of(objects: Vec<JValue>) -> JValue{
     let class = Arc::new(classes::array_class(&class));
     return heap::add_ref(JObject{
         class,
-        data: JObjectData::Array(objects.len(), objects)
+        data: RwLock::new(JObjectData::Array(objects.len(), objects))
     });
 }
 

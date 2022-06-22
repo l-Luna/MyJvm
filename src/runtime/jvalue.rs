@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::RwLock};
 use runtime::heap;
 
 use super::{heap::JRef, class::ClassRef};
@@ -18,7 +18,7 @@ pub enum JValue{
 #[derive(Debug)]
 pub struct JObject{
     pub class: ClassRef,
-    pub data: JObjectData
+    pub data: RwLock<JObjectData>
 }
 
 #[derive(Debug)]

@@ -5,7 +5,7 @@ use runtime::class::Class;
 
 use crate::parser::classfile_structs::ConstantEntry;
 
-use super::{class::{Method, self}, heap};
+use super::{jvalue::JObjectData, class::{Method, self}, heap::{JRef, self}};
 
 #[derive(Debug)]
 pub enum MethodResult{
@@ -116,6 +116,32 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code)
                     return MethodResult::MachineError("Tried to execute astore without reference on top of stack");
                 }
             },
+
+            Instruction::CAStore => {
+                if let Some(JValue::Reference(array_ref)) = stack.get(0)
+                && let Some(JValue::Int(idx)) = stack.get(1)
+                && let Some(JValue::Int(value)) = stack.get(2){
+                    let array_ref: &Option<JRef> = array_ref; // fix IDE highlighting
+                    if let Some(array_ref) = array_ref{
+                        let array = array_ref.deref();
+                        if let Ok(mut write) = array.data.write(){
+                            if let JObjectData::Array(size, values) = &mut *write{
+                                if *idx < 0 || *idx >= (*size as i32){
+                                    return MethodResult::Throw(JValue::Reference(None));
+                                }
+                                let idx = *idx as usize;
+                                *values = values.splice(idx..(idx + 1), [JValue::Int(*value)]).collect();
+                            }
+                        }; //ah. fun.
+                    }else{
+                        return MethodResult::Throw(JValue::Reference(None));
+                    }
+
+                    stack.remove(0); stack.remove(0); stack.remove(0);
+                }else{
+                    return MethodResult::MachineError("Tried to execute castore without array & index & value on top of stack");
+                }
+            }
 
             Instruction::ILoad(at) => {
                 if let Some(Some(JValue::Int(value))) = locals.get(*at as usize){
