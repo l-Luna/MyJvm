@@ -234,7 +234,6 @@ fn tag_to_member_kind(tag: &u8) -> Result<MemberKind, String>{
 
 fn dyn_ref_index_to_type(idx: &u8) -> Result<DynamicReferenceType, String>{
     return match idx {
-        // TODO: is this correct?
         1 => Ok(DynamicReferenceType::GetField),
         2 => Ok(DynamicReferenceType::GetStatic),
         3 => Ok(DynamicReferenceType::PutField),
@@ -276,6 +275,18 @@ fn parse_attribute(mut attr: Vec<u8>, const_pool: &Vec<ConstantEntry>, name: &St
         
         "Synthetic" => return Ok(Some(Attribute::Synthetic)),
         "Deprecated" => return Ok(Some(Attribute::Deprecated)),
+
+        "LineNumberTable" => {
+            let entries = next_short_err(&mut attr)?;
+            let mut table = Vec::with_capacity(entries as usize);
+            for _ in 0..entries{
+                table.push(LineNumberMapping{
+                    bytecode_idx: next_short_err(&mut attr)?,
+                    line_number: next_short_err(&mut attr)?
+                });
+            }
+            return Ok(Some(Attribute::LineNumberTable(table)));
+        },
 
         "Code" => {
             let max_stack = next_short_err(&mut attr)?;
