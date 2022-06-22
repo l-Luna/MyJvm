@@ -13,6 +13,14 @@ pub fn create_new(of: ClassRef) -> JValue{
     });
 }
 
+pub fn create_new_array(of: ClassRef, length: usize) -> JValue{
+    let elements = Vec::with_capacity(length);
+    return heap::add_ref(JObject{
+        class: of,
+        data: JObjectData::Array(length, elements)
+    });
+}
+
 pub fn synthesize_string(string: &String) -> JObject{
     let mut fields = HashMap::with_capacity(4);
     fields.insert("value".to_owned(), array_of(wrap_ints(as_utf16(string))));
@@ -51,7 +59,7 @@ fn array_of(objects: Vec<JValue>) -> JValue{
     let class = Arc::new(classes::array_class(&class));
     return heap::add_ref(JObject{
         class,
-        data: JObjectData::Array(objects)
+        data: JObjectData::Array(objects.len(), objects)
     });
 }
 

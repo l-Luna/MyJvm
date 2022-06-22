@@ -24,7 +24,7 @@ pub struct JObject{
 #[derive(Debug)]
 pub enum JObjectData{
     Fields(HashMap<String, JValue>),
-    Array(Vec<JValue>)
+    Array(usize, Vec<JValue>)
 }
 
 impl JValue{

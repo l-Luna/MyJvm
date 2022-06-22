@@ -63,7 +63,11 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code)
                 },
                 ConstantEntry::StringConst(s) => {
                     stack.insert(0, heap::add_ref(objects::synthesize_string(&s)));
-                }
+                },
+                ConstantEntry::Class(s) => {
+                    // TODO!: synthesize class objects
+                    stack.insert(0, heap::add_ref(objects::synthesize_string(&s)));
+                },
                 _ => { panic!("Possibly unhandled or invalid constant: {:?}", c) }
             }
 
@@ -164,6 +168,20 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code)
                     }
                 }else{
                     return MethodResult::MachineError("Tried to execute ifeq without int on top of stack");
+                }
+            },
+            Instruction::IfNonnull(offset) => {
+                if let JValue::Reference(r) = stack.remove(0){
+                    if let Some(_) = r{
+                        let target = (*idx as isize) + (*offset as isize);
+                        if target < 0{
+                            panic!("Bad goto offset");
+                        }
+                        i = bytecode_idx_to_instr_idx(target as usize, code);
+                        was_jump = true;
+                    }
+                }else{
+                    return MethodResult::MachineError("Tried to execute ifnonnull without reference on top of stack");
                 }
             },
 
@@ -315,6 +333,20 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code)
                     .ensure_loaded()
                     .expect("Could not link class for new instruction!");
                 stack.insert(0, objects::create_new(class));
+            },
+            Instruction::ANewArray(class_name) => {
+                let class = heap::get_or_create_bt_class(format!("L{};", class_name))
+                    .expect("Could not parse class for anewarray instruction!")
+                    .ensure_loaded()
+                    .expect("Could not link class for anewarray instruction!");
+                if let JValue::Int(l) = stack.remove(0){
+                    if l < 0{
+                        // TODO: synthesize NegativeArraySizeException
+                        return MethodResult::Throw(JValue::Reference(None));
+                    }
+                    let l = l as usize;
+                    stack.insert(0, objects::create_new_array(class, l));
+                }
             },
 
             other => {
