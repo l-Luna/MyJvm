@@ -14,6 +14,6 @@ fn builtin_native(owner: &String, name_and_desc: &String) -> fn(Vec<JValue>) -> 
         "java.lang.Object" => java_lang_object::builtin_object_native(name_and_desc),
         "java.lang.System" => java_lang_system::builtin_system_native(name_and_desc),
         "jdk.internal.misc.Unsafe" => jdk_internal_misc_unsafe::builtin_unsafe_native(name_and_desc),
-        _ => panic!("Unknown builtin native owner: {}", owner)
+        _ => panic!("Unknown builtin native owner {} for method {}", owner, name_and_desc)
     }
 }

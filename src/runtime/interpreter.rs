@@ -7,8 +7,7 @@ use runtime::class::Class;
 
 use crate::parser::classfile_structs::{ConstantEntry, MemberRef};
 
-use super::class::{ClassRef, MaybeClass};
-use super::{jvalue::JObjectData, class::{Method, self}, heap::{JRef, self}};
+use super::{jvalue::JObjectData, class::{self, Method, MaybeClass}, heap::{self, JRef}};
 
 #[derive(Debug)]
 pub enum MethodResult{
@@ -376,7 +375,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     let class = &r.deref().class;
                     let target = class.virtual_method(&target.name_and_type)
                         .expect(format!("Tried to execute invokevirtual for method with {:?} that doesn't exist on receiver of type {} inside {}.{}{}", &target, &r.deref().class.name, &owner.name, &method.name, &method.descriptor()).as_str());
-                    let result = execute(owner, &target, args, update_trace(&trace, *idx, method, owner));
+                    let result = execute(&*class, &target, args, update_trace(&trace, *idx, method, owner));
                     // TODO: exception handling
                     match result{
                         MethodResult::FinishWithValue(v) => stack.push(v),
@@ -400,7 +399,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     for _ in 0..num_params{
                         args.push(stack.remove(0));
                     }
-                    let result = execute(owner, &target, args, update_trace(&trace, *idx, method, owner));
+                    let result = execute(&*class, &target, args, update_trace(&trace, *idx, method, owner));
                     match result{
                         MethodResult::FinishWithValue(v) => stack.push(v),
                         MethodResult::Finish => {},
