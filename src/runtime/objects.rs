@@ -25,7 +25,7 @@ pub fn create_new_array(of: ClassRef, length: usize) -> JValue{
 
 pub fn synthesize_string(string: &String) -> JObject{
     let mut fields = HashMap::with_capacity(4);
-    fields.insert("value".to_owned(), array_of(wrap_ints(as_utf16(string))));
+    fields.insert("value".to_owned(), array_of(wrap_bytes(as_utf16(string))));
     fields.insert("coder".to_owned(), JValue::Int(1)); // always UTF16
     fields.insert("hash".to_owned(), JValue::Int(1)); // let java figure it out; these are default values, made explicit
     fields.insert("hashIsZero".to_owned(), JValue::Int(1));
@@ -35,11 +35,45 @@ pub fn synthesize_string(string: &String) -> JObject{
     };
 }
 
+pub fn java_string_to_rust_string(jstring: JValue) -> String{
+    if let JValue::Reference(Some(r)) = jstring{
+        let obj = r.deref();
+        if let JObjectData::Fields(f) = &*obj.data.read().unwrap(){
+            let value = f["value"];
+            if let JValue::Reference(Some(r)) = value{
+                let array = r.deref();
+                if let JObjectData::Array(_, v) = &*array.data.read().unwrap(){
+                    let bytes = unwrap_bytes(v);
+                    let bytes: Vec<u16> = bytes
+                        .chunks_exact(2)
+                        .into_iter()
+                        .map(|a| u16::from_ne_bytes([a[0], a[1]]))
+                        .collect();
+                    return String::from_utf16(&bytes).unwrap();
+                };
+            }
+        };
+    }
+    panic!("Tried to convert a non-java-string to a rust string!");
+}
+
 // implementation
 // all panic rather than erroring
 
-fn wrap_ints(ints: Vec<u8>) -> Vec<JValue>{
+fn wrap_bytes(ints: Vec<u8>) -> Vec<JValue>{
     return ints.iter().map(|i| JValue::Int(*i as i32)).collect();
+}
+
+fn unwrap_bytes(ints: &Vec<JValue>) -> Vec<u8>{
+    let mut ret = Vec::with_capacity(ints.len());
+    for v in ints{
+        if let JValue::Int(i) = v{
+            ret.push(*i as u8);
+        }else{
+            panic!("Tried to call objects::unwrap_bytes on a vec with non-ints!");
+        }
+    }
+    return ret;
 }
 
 fn as_utf16(string: &String) -> Vec<u8>{

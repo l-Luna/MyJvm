@@ -4,6 +4,8 @@ use runtime::jvalue::JValue;
 mod java_lang_object;
 mod java_lang_system;
 mod java_lang_runtime;
+mod java_lang_class;
+
 mod jdk_internal_misc_unsafe;
 
 pub fn run_builtin_native(owner: &String, name_and_desc: &String, args: Vec<JValue>) -> MethodResult{
@@ -15,7 +17,10 @@ fn builtin_native(owner: &String, name_and_desc: &String) -> fn(Vec<JValue>) -> 
         "java.lang.Object" => java_lang_object::builtin_object_native(name_and_desc),
         "java.lang.System" => java_lang_system::builtin_system_native(name_and_desc),
         "java.lang.Runtime" => java_lang_runtime::builtin_runtime_native(name_and_desc),
+        "java.lang.Class" => java_lang_class::builtin_class_native(name_and_desc),
+
         "jdk.internal.misc.Unsafe" => jdk_internal_misc_unsafe::builtin_unsafe_native(name_and_desc),
+
         _ => panic!("Unknown builtin native owner {} for method {}", owner, name_and_desc)
     }
 }
