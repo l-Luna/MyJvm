@@ -630,9 +630,27 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
                 }else{
                     return Err("Missing uint operand of goto_w".to_owned());
                 }
-            }
+            },
 
-            // LookupSwitch
+            constants::OP_TABLE_SWITCH => {
+                let pad = (4 - ((idx + 1) % 4)) % 4; // amazing
+                for _ in 0..pad{
+                    bytecode.remove(0);
+                }
+                if let Some(default_idx) = next_int(bytecode)
+                && let Some(lo) = next_int(bytecode)
+                && let Some(hi) = next_int(bytecode){
+                    let n_jumps = (hi - lo + 1) as usize;
+                    dbg!(default_idx, lo, hi, n_jumps);
+                    let mut jumps: Vec<i32> = Vec::with_capacity(n_jumps);
+                    for _ in 0..n_jumps{
+                        if let Some(off) = next_int(bytecode){
+                            jumps.push(off);
+                        }else{ return Err("Missing jump target of tableswitch".to_owned()); }
+                    }
+                    result.push((idx, Instruction::TableSwitch(default_idx, lo, hi, jumps)));
+                }else{ return Err("Missing initial int operands of tableswitch".to_owned()); }
+            },
             constants::OP_LOOKUP_SWITCH => {
                 let pad = (4 - ((idx + 1) % 4)) % 4; // amazing
                 for _ in 0..pad{
@@ -645,11 +663,11 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
                         if let Some(m) = next_int(bytecode)
                         && let Some(off) = next_int(bytecode){
                             pairs.push((m, off));
-                        }else{ return Err("Missing match-offset pair of tableswitch".to_owned()); }
+                        }else{ return Err("Missing match-offset pair of lookupswitch".to_owned()); }
                     }
                     result.push((idx, Instruction::LookupSwitch(default_idx, pairs)));
-                }else{ return Err("Missing initial int operands of tableswitch".to_owned()); }
-            }
+                }else{ return Err("Missing initial int operands of lookupswitch".to_owned()); }
+            },
 
             constants::OP_LCMP => result.push((idx, Instruction::LCmp)),
             constants::OP_FCMPL => result.push((idx, Instruction::FCmpL)),

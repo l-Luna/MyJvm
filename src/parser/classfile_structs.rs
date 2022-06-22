@@ -231,7 +231,7 @@ pub enum Instruction{
     IInc(u8, i8),
 
     Goto(i32), GotoWide(i64),
-    TableSwitch /*TODO*/, LookupSwitch(i32, Vec<(i32, i32)>),
+    TableSwitch(i32, i32, i32, Vec<i32>), LookupSwitch(i32, Vec<(i32, i32)>),
 
     LCmp, FCmpL, FCmpG, DCmpL, DCmpG,
 
