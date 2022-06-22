@@ -213,6 +213,13 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code)
                     MethodResult::MachineError("Tried to execute dreturn without double on top of stack")
                 }
             },
+            Instruction::AReturn => {
+                return if let Some(JValue::Reference(ret)) = stack.get(0){
+                    MethodResult::FinishWithValue(JValue::Reference(*ret))
+                }else{
+                    MethodResult::MachineError("Tried to execute areturn without reference on top of stack")
+                }
+            },
             Instruction::Return => return MethodResult::Finish,
 
             Instruction::GetField(target) => {
