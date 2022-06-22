@@ -16,7 +16,7 @@ pub enum MethodResult{
 }
 
 pub fn execute(owner: &Class, method: &Method, args: Vec<JValue>) -> MethodResult{
-    println!("Executing {}", method.name.clone());
+    println!("Executing {} in {}", &method.name, &owner.name);
     match &method.code{
         class::MethodImpl::Bytecode(bytecode) => interpret(owner, method, args, bytecode),
         class::MethodImpl::Native => native_impls::run_builtin_native(&owner.name, &format!("{}{}", method.name, method.descriptor()), args),

@@ -9,6 +9,6 @@ pub fn builtin_system_native(name_and_desc: &str) -> fn(Vec<JValue>) -> MethodRe
 }
 
 fn register_natives_v(_: Vec<JValue>) -> MethodResult{
-    // TODO: set System.out and System.in? after they're set to null?
+    // no-op
     return MethodResult::Finish;
 }
