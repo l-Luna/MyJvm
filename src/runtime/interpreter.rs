@@ -62,7 +62,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code)
                     stack.insert(1, JValue::Second);
                 },
                 ConstantEntry::StringConst(s) => {
-                    stack.insert(0, heap::add_ref(objects::synthesize_string(s)));
+                    stack.insert(0, heap::add_ref(objects::synthesize_string(&s)));
                 }
                 _ => { panic!("Possibly unhandled or invalid constant: {:?}", c) }
             }
