@@ -46,11 +46,11 @@ impl Class{
         return None;
     }
 
-    pub fn special_method(&self, target: &NameAndType, owner_int_name: String) -> Option<&Method>{
+    pub fn special_method(&self, target: &NameAndType, owner_int_name: String) -> Option<(&Method, &Class)>{
         if self.descriptor == format!("L{};", owner_int_name){
             for method in &self.methods{
                 if !method.is_static && method.name == target.name && method.descriptor() == target.descriptor{
-                    return Some(method);
+                    return Some((method, self));
                 }
             }
         }
@@ -199,10 +199,20 @@ pub fn link_class(classfile: Classfile, loader: Arc<dyn ClassLoader>) -> Result<
         .map(|(a, b)| (b, a)) // :3
         .map(RwLock::new)
         .collect();
+
     let mut all_methods = Vec::with_capacity(classfile.methods.len());
     for m in classfile.methods{
         all_methods.push(link_method(m, &loader)?);
     }
+
+    let mut super_class = None;
+    if let Some(super_name) = &classfile.super_class{
+        super_class = Some(heap::get_or_create_class(format!("L{};", super_name), &loader)
+            .expect("Could not find or parse super-class classfile")
+            .ensure_loaded()
+            .expect("Could not link superclass"));
+    }
+
     return Ok(Class{
         name: binary_to_fq_name(classfile.name.clone()),
         descriptor: format!("L{};", classfile.name.clone()),
@@ -210,7 +220,7 @@ pub fn link_class(classfile: Classfile, loader: Arc<dyn ClassLoader>) -> Result<
         instance_fields,
         static_fields,
         methods: all_methods,
-        super_class: None,
+        super_class,
         interfaces: vec![],
     });
 }

@@ -286,7 +286,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code)
                 let receiver = stack.pop();
                 if let Some(JValue::Reference(Some(r))) = receiver{
                     let class = &r.deref().class;
-                    let target = class.special_method(&target.name_and_type, target.owner_name.clone())
+                    let (target, owner) = class.special_method(&target.name_and_type, target.owner_name.clone())
                         .expect(format!("Tried to execute invokespecial for method with {:?} for {} that doesn't exist on receiver", &target.name_and_type, &target.owner_name.clone()).as_str());
                     let num_params = target.parameters.len();
                     let mut args = Vec::with_capacity(num_params + 1);
