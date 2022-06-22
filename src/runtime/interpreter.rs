@@ -198,7 +198,32 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 }else{
                     return MethodResult::MachineError("Tried to execute castore without array & index & value on top of stack");
                 }
-            }
+            },
+            Instruction::AAStore => {
+                if let Some(JValue::Reference(array_ref)) = stack.get(2)
+                && let Some(JValue::Int(array_idx)) = stack.get(1)
+                && let Some(JValue::Reference(value)) = stack.get(0){
+                    let array_ref: &Option<JRef> = array_ref; // fix IDE highlighting
+                    if let Some(array_ref) = array_ref{
+                        let array = array_ref.deref();
+                        if let Ok(mut write) = array.data.write(){
+                            if let JObjectData::Array(size, values) = &mut *write{
+                                if *array_idx < 0 || *array_idx >= (*size as i32){
+                                    return MethodResult::Throw(update_trace(&trace, *idx, method, owner));
+                                }
+                                let idx = *array_idx as usize;
+                                set_and_pad(values, idx, JValue::Reference(*value), JValue::Reference(None));
+                            }
+                        };
+                    }else{
+                        return MethodResult::Throw(update_trace(&trace, *idx, method, owner));
+                    }
+
+                    stack.remove(0); stack.remove(0); stack.remove(0);
+                }else{
+                    return MethodResult::MachineError("Tried to execute castore without array & index & value on top of stack");
+                }
+            },
 
             Instruction::ILoad(at) => {
                 if let Some(Some(JValue::Int(value))) = locals.get(*at as usize){
