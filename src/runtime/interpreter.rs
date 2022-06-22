@@ -5,8 +5,9 @@ use runtime::jvalue::JValue;
 use runtime::{native_impls, objects};
 use runtime::class::Class;
 
-use crate::parser::classfile_structs::ConstantEntry;
+use crate::parser::classfile_structs::{ConstantEntry, MemberRef};
 
+use super::class::{ClassRef, MaybeClass};
 use super::{jvalue::JObjectData, class::{Method, self}, heap::{JRef, self}};
 
 #[derive(Debug)]
@@ -345,17 +346,18 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
             },
             
             Instruction::InvokeVirtual(target) => {
+                let params = resolve_signature(&target);
+                let mut args = Vec::with_capacity(params.len() + 1);
+                for _ in 0..params.len(){
+                    args.insert(0, stack.remove(0));
+                }
                 let receiver = stack.remove(0);
+                args.insert(0, receiver.clone());
+
                 if let JValue::Reference(Some(r)) = receiver{
                     let class = &r.deref().class;
                     let target = class.virtual_method(&target.name_and_type)
                         .expect(format!("Tried to execute invokevirtual for method with {:?} that doesn't exist on receiver of type {} inside {}.{}{}", &target, &r.deref().class.name, &owner.name, &method.name, &method.descriptor()).as_str());
-                    let num_params = target.parameters.len();
-                    let mut args = Vec::with_capacity(num_params + 1);
-                    args.push(receiver.clone());
-                    for _ in 0..num_params{
-                        args.push(stack.remove(0));
-                    }
                     let result = execute(owner, &target, args, update_trace(&trace, *idx, method, owner));
                     // TODO: exception handling
                     match result{
@@ -393,17 +395,18 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 }
             },
             Instruction::InvokeSpecial(target) => {
+                let params = resolve_signature(&target);
+                let mut args = Vec::with_capacity(params.len() + 1);
+                for _ in 0..params.len(){
+                    args.insert(0, stack.remove(0));
+                }
                 let receiver = stack.remove(0);
+                args.insert(0, receiver.clone());
+
                 if let JValue::Reference(Some(r)) = receiver{
                     let class = &r.deref().class;
                     let (target, owner) = class.special_method(&target.name_and_type, target.owner_name.clone())
                         .expect(format!("Tried to execute invokespecial for method with {:?} for {} that doesn't exist on receiver", &target.name_and_type, &target.owner_name.clone()).as_str());
-                    let num_params = target.parameters.len();
-                    let mut args = Vec::with_capacity(num_params + 1);
-                    args.push(receiver.clone());
-                    for _ in 0..num_params{
-                        args.push(stack.pop().expect("Tried to execute invokespecial with insufficient arguments"));
-                    }
                     let result = execute(owner, &target, args, update_trace(&trace, *idx, method, owner));
                     // TODO: exception handling
                     match result{
@@ -492,4 +495,15 @@ fn set_and_pad<T>(list: &mut Vec<T>, idx: usize, value: T, default: T) where T: 
         list.remove(idx);
         list.insert(idx, value);
     }
+}
+
+fn resolve_signature(target: &MemberRef) -> Vec<MaybeClass>{
+    let owner = heap::get_or_create_bt_class(format!("L{};", target.owner_name.clone()))
+        .expect("Could not load field owner")
+        .ensure_loaded()
+        .expect("Could not load field owner");
+    return owner.virtual_method(&target.name_and_type)
+        .expect("Tried to invoke method that does not exist")
+        .parameters
+        .clone();
 }

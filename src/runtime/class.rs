@@ -101,7 +101,7 @@ impl Class{
 
 pub type ClassRef = Arc<Class>;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum MaybeClass{
     Class(ClassRef),
     Unloaded(String), // TODO: privatise ctor? need to ensure classfile is created first
