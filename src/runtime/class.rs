@@ -1,8 +1,8 @@
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use crate::{parser::{classfile_structs::{Code, Classfile, NameAndType, FieldInfo, MethodInfo, Attribute}, classfile_parser}, constants};
 use super::{classes::{ClassLoader, self}, jvalue::JValue, heap};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct Class{
     pub name: String,           // a.b.C
     pub descriptor: String,     // La/b/C; or I or [I...
@@ -10,8 +10,15 @@ pub struct Class{
     pub interfaces: Vec<ClassRef>,
     pub loader_name: String,
     pub instance_fields: Vec<Field>,
-    pub static_fields: Vec<(Field, JValue)>,
+    pub static_fields: Vec<RwLock<(Field, JValue)>>,
     pub methods: Vec<Method>
+}
+
+impl PartialEq for Class {
+    fn eq(&self, other: &Self) -> bool{
+        return self.name == other.name
+            && self.descriptor == other.descriptor;
+    }
 }
 
 impl Class{
@@ -169,6 +176,7 @@ pub fn link_class(classfile: Classfile, loader: Arc<dyn ClassLoader>) -> Result<
     let static_fields = static_fields.into_iter()
         .map(|f| (JValue::default_value_for(&f.type_class.descriptor()), f))
         .map(|(a, b)| (b, a)) // :3
+        .map(RwLock::new)
         .collect();
     let mut all_methods = Vec::with_capacity(classfile.methods.len());
     for m in classfile.methods{

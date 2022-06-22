@@ -194,19 +194,37 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code)
                     .expect("Could not load field owner")
                     .ensure_loaded()
                     .expect("Could not load field owner");
-                let mut pushed = false;
+                let mut was_static = false;
                 for f in &owner.static_fields{
+                    let f = f.read().unwrap();
                     if f.0.name == target.name_and_type.name{
                         let j_value = f.1.clone();
-                        println!("got {:?} from field {:?}", j_value, &target.name_and_type);
                         stack.insert(0, j_value);
-                        pushed = true;
+                        was_static = true;
                     }
                 }
-                if !pushed{
+                if !was_static{
                     todo!();
                 }
-            }
+            },
+            Instruction::PutField(target) => {
+                let owner = heap::get_or_create_bt_class(format!("L{};", target.owner_name.clone()))
+                    .expect("Could not load field owner")
+                    .ensure_loaded()
+                    .expect("Could not load field owner");
+                let mut was_static = false;
+                let value = stack.remove(0);
+                for f in &owner.static_fields{
+                    let mut f = f.write().unwrap();
+                    if f.0.name == target.name_and_type.name{
+                        f.1 = value;
+                        was_static = true;
+                    }
+                }
+                if !was_static{
+                    todo!();
+                }
+            },
             
             Instruction::InvokeVirtual(target) => {
                 let receiver = stack.pop();
