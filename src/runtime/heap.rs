@@ -94,7 +94,7 @@ pub fn add_class(class: Class, loader_name: String){
         match interpreter::execute(&class, clinit, Vec::new(), StackTrace::new()){
             MethodResult::FinishWithValue(_) |
             MethodResult::Finish => { /* good */ },
-            MethodResult::Throw(e) => panic!("clinit failed: {}", e),
+            MethodResult::Throw(e) => panic!("clinit failed:\n{}", e),
             MethodResult::MachineError(e) => panic!("clinit failed: {}", e),
         }
     }

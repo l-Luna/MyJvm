@@ -45,7 +45,7 @@ impl std::ops::DerefMut for StackTrace{
 impl std::fmt::Display for StackTrace{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result{
         for entry in self.iter().rev(){
-            write!(f, "\tat {}{}", entry.class_name, entry.method_name)?;
+            write!(f, "\tat {}.{}", entry.class_name, entry.method_name)?;
             if let Some(l) = entry.line_number{
                 write!(f, ":{}", l)?;
             }
