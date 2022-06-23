@@ -303,3 +303,5 @@ pub fn system_init_phase_1() -> NameAndType{
 
 // Misc
 pub const BOOTSTRAP_LOADER_NAME: &str   = "java.lang.ClassLoader";
+
+pub const CLASS_DESC_FIELD_NAME: &str   = "JVM_DESCRIPTOR";

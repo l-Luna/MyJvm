@@ -5,6 +5,7 @@ mod java_lang_object;
 mod java_lang_system;
 mod java_lang_runtime;
 mod java_lang_class;
+mod java_lang_string;
 
 mod jdk_internal_misc_unsafe;
 
@@ -18,6 +19,7 @@ fn builtin_native(owner: &String, name_and_desc: &String) -> fn(Vec<JValue>) -> 
         "java.lang.System" => java_lang_system::builtin_system_native(name_and_desc),
         "java.lang.Runtime" => java_lang_runtime::builtin_runtime_native(name_and_desc),
         "java.lang.Class" => java_lang_class::builtin_class_native(name_and_desc),
+        "java.lang.StringUTF16" => java_lang_string::builtin_string_utf8_native(name_and_desc),
 
         "jdk.internal.misc.Unsafe" => jdk_internal_misc_unsafe::builtin_unsafe_native(name_and_desc),
 

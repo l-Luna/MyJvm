@@ -127,8 +127,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     stack.insert(0, heap::add_ref(objects::synthesize_string(&s)));
                 },
                 ConstantEntry::Class(s) => {
-                    // TODO!: synthesize class objects
-                    stack.insert(0, heap::add_ref(objects::synthesize_string(&s)));
+                    stack.insert(0, heap::add_ref(objects::synthesize_class(&s)));
                 },
                 _ => { panic!("Possibly unhandled or invalid constant: {:?}", c) }
             }
@@ -286,6 +285,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 if let Some(Some(JValue::Int(value))) = locals.get(*at as usize){
                     stack.insert(0, JValue::Int(*value));
                 }else{
+                    println!("Locals: {:?}, params: {:?}", &locals, &args);
                     return MethodResult::MachineError("Tried to execute iload without int at local variable index");
                 }
             },
@@ -396,6 +396,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     stack.remove(0); stack.remove(0);
                     stack.insert(0, JValue::Int(val));
                 }else{
+                    dbg!(&stack);
                     return MethodResult::MachineError("Tried to execute ishr without two ints on top of stack");
                 }
             },
@@ -442,6 +443,15 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     return MethodResult::MachineError("Tried to execute dadd without two ints on top of stack");
                 }
             },
+
+            Instruction::IInc(at, inc) => {
+                if let Some(Some(JValue::Int(value))) = locals.get(*at as usize){
+                    let at = *at as usize;
+                    let new_value = *value + *inc as i32;
+                    set_and_pad(&mut locals, at, Some(JValue::Int(new_value)), None);
+                    stack.remove(0);
+                }
+            }
 
             Instruction::Goto(offset) => {
                 let target = (*idx as isize) + (*offset as isize);
@@ -785,7 +795,32 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     }
                 }
                 if !was_static{
-                    todo!();
+                    if let JValue::Reference(r) = stack.remove(0){
+                        if let Some(r) = r{
+                            let obj = r.deref();
+                            if let JObjectData::Fields(f) = &*obj.data.read().unwrap(){
+                                let mut pushed = false;
+                                for (name, value) in f{
+                                    if &target.name_and_type.name == name{
+                                        stack.insert(0, value.clone());
+                                        pushed = true;
+                                        break;
+                                    }
+                                }
+                                if !pushed{
+                                    // field declared in class but not present in actual fields
+                                    // can happen if object is badly made (like `Class`es currently)
+                                    stack.insert(0, JValue::default_value_for(&target.name_and_type.descriptor));
+                                }
+                            }else{
+                                return MethodResult::MachineError("Tried to execute getfield on array reference!");
+                            };
+                        }else{
+                            return MethodResult::Throw(update_trace(&trace, *idx, method, &owner));
+                        }
+                    }else{
+                        return MethodResult::MachineError("Tried to execute getfield without reference on stack!");
+                    }
                 }
             },
             Instruction::PutField(target) => {
@@ -860,7 +895,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     let num_params = target.parameters.len();
                     let mut args = Vec::with_capacity(num_params);
                     for _ in 0..num_params{
-                        args.push(stack.remove(0));
+                        args.insert(0, stack.remove(0));
                     }
                     let result = execute(&*class, &target, args, update_trace(&trace, *idx, method, owner));
                     match result{
@@ -899,6 +934,29 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     return MethodResult::Throw(update_trace(&trace, *idx, method, owner));
                 }else{
                     return MethodResult::MachineError("Tried to execute invokespecial without object on stack");
+                }
+            },
+
+            Instruction::ArrayLength => {
+                if let Some(JValue::Reference(array_ref)) = stack.get(0){
+                    if let Some(array_ref) = array_ref{
+                        let array = array_ref.deref();
+                        if let Ok(read) = array.data.read(){
+                            if let JObjectData::Array(size, _) = &*read{
+                                stack.insert(0, JValue::Int(*size as i32));
+                            }else{
+                                return MethodResult::MachineError("Tried to execute arraylength on non-array reference!");
+                            }
+                        }else{
+                            return MethodResult::MachineError("Could not read object data for arraylength");
+                        };
+                    }else{
+                        return MethodResult::Throw(update_trace(&trace, *idx, method, owner));
+                    }
+
+                    stack.remove(1); // 0 is the length we just pushed
+                }else{
+                    return MethodResult::MachineError("Tried to execute arraylength without reference on top of stack");
                 }
             },
 
