@@ -320,6 +320,32 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 }
             },
 
+            Instruction::BALoad => {
+                if let Some(JValue::Reference(array_ref)) = stack.get(1)
+                && let Some(JValue::Int(array_idx)) = stack.get(0){
+                    let array_ref: &Option<JRef> = array_ref; // fix IDE highlighting
+                    if let Some(array_ref) = array_ref{
+                        let array = array_ref.deref();
+                        if let Ok(read) = array.data.read(){
+                            if let JObjectData::Array(size, values) = &*read{
+                                if *array_idx < 0 || *array_idx >= (*size as i32){
+                                    return MethodResult::Throw(update_trace(&trace, *idx, method, owner));
+                                }
+                                let idx = *array_idx as usize;
+                                stack.insert(0, values[idx].clone());
+                            }
+                        };
+                    }else{
+                        return MethodResult::Throw(update_trace(&trace, *idx, method, owner));
+                    }
+
+                    stack.remove(0); stack.remove(0);
+                }else{
+                    println!("stack is {:?} in {}", &stack, &method.name);
+                    return MethodResult::MachineError("Tried to execute baload without array & index on top of stack");
+                }
+            },
+
             Instruction::Dup => {
                 if let Some(value) = stack.get(0){
                     stack.insert(0, value.clone());
@@ -449,7 +475,6 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     let at = *at as usize;
                     let new_value = *value + *inc as i32;
                     set_and_pad(&mut locals, at, Some(JValue::Int(new_value)), None);
-                    stack.remove(0);
                 }
             }
 
