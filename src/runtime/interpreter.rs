@@ -116,6 +116,13 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     stack.insert(0, JValue::Long(*l));
                     stack.insert(1, JValue::Second);
                 },
+                ConstantEntry::Float(f) => {
+                    stack.insert(0, JValue::Float(*f));
+                },
+                ConstantEntry::Double(d) => {
+                    stack.insert(0, JValue::Double(*d));
+                    stack.insert(1, JValue::Second);
+                },
                 ConstantEntry::StringConst(s) => {
                     stack.insert(0, heap::add_ref(objects::synthesize_string(&s)));
                 },
@@ -174,7 +181,57 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 }
             },
 
+            Instruction::BAStore => {
+                if let Some(JValue::Reference(array_ref)) = stack.get(2)
+                && let Some(JValue::Int(array_idx)) = stack.get(1)
+                && let Some(JValue::Int(value)) = stack.get(0){
+                    let array_ref: &Option<JRef> = array_ref; // fix IDE highlighting
+                    if let Some(array_ref) = array_ref{
+                        let array = array_ref.deref();
+                        if let Ok(mut write) = array.data.write(){
+                            if let JObjectData::Array(size, values) = &mut *write{
+                                if *array_idx < 0 || *array_idx >= (*size as i32){
+                                    return MethodResult::Throw(update_trace(&trace, *idx, method, owner));
+                                }
+                                let idx = *array_idx as usize;
+                                set_and_pad(values, idx, JValue::Int(to_byte(*value)), JValue::Int(0));
+                            }
+                        }; //ah. fun.
+                    }else{
+                        return MethodResult::Throw(update_trace(&trace, *idx, method, owner));
+                    }
+
+                    stack.remove(0); stack.remove(0); stack.remove(0);
+                }else{
+                    return MethodResult::MachineError("Tried to execute bastore without array & index & value on top of stack");
+                }
+            },
             Instruction::CAStore => {
+                if let Some(JValue::Reference(array_ref)) = stack.get(2)
+                && let Some(JValue::Int(array_idx)) = stack.get(1)
+                && let Some(JValue::Int(value)) = stack.get(0){
+                    let array_ref: &Option<JRef> = array_ref; // fix IDE highlighting
+                    if let Some(array_ref) = array_ref{
+                        let array = array_ref.deref();
+                        if let Ok(mut write) = array.data.write(){
+                            if let JObjectData::Array(size, values) = &mut *write{
+                                if *array_idx < 0 || *array_idx >= (*size as i32){
+                                    return MethodResult::Throw(update_trace(&trace, *idx, method, owner));
+                                }
+                                let idx = *array_idx as usize;
+                                set_and_pad(values, idx, JValue::Int(to_char(*value)), JValue::Int(0));
+                            }
+                        };
+                    }else{
+                        return MethodResult::Throw(update_trace(&trace, *idx, method, owner));
+                    }
+
+                    stack.remove(0); stack.remove(0); stack.remove(0);
+                }else{
+                    return MethodResult::MachineError("Tried to execute castore without array & index & value on top of stack");
+                }
+            },
+            Instruction::IAStore => {
                 if let Some(JValue::Reference(array_ref)) = stack.get(2)
                 && let Some(JValue::Int(array_idx)) = stack.get(1)
                 && let Some(JValue::Int(value)) = stack.get(0){
@@ -189,14 +246,14 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                                 let idx = *array_idx as usize;
                                 set_and_pad(values, idx, JValue::Int(*value), JValue::Int(0));
                             }
-                        }; //ah. fun.
+                        };
                     }else{
                         return MethodResult::Throw(update_trace(&trace, *idx, method, owner));
                     }
 
                     stack.remove(0); stack.remove(0); stack.remove(0);
                 }else{
-                    return MethodResult::MachineError("Tried to execute castore without array & index & value on top of stack");
+                    return MethodResult::MachineError("Tried to execute iastore without array & index & value on top of stack");
                 }
             },
             Instruction::AAStore => {
@@ -221,7 +278,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
 
                     stack.remove(0); stack.remove(0); stack.remove(0);
                 }else{
-                    return MethodResult::MachineError("Tried to execute castore without array & index & value on top of stack");
+                    return MethodResult::MachineError("Tried to execute aastore without array & index & value on top of stack");
                 }
             },
 
@@ -229,8 +286,6 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 if let Some(Some(JValue::Int(value))) = locals.get(*at as usize){
                     stack.insert(0, JValue::Int(*value));
                 }else{
-                    dbg!(*at, locals);
-                    println!("method: {}{}", &method.name, &method.descriptor());
                     return MethodResult::MachineError("Tried to execute iload without int at local variable index");
                 }
             },
@@ -240,6 +295,21 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     stack.insert(1, JValue::Second);
                 }else{
                     return MethodResult::MachineError("Tried to execute lload without long at local variable index");
+                }
+            },
+            Instruction::FLoad(at) => {
+                if let Some(Some(JValue::Float(value))) = locals.get(*at as usize){
+                    stack.insert(0, JValue::Float(*value));
+                }else{
+                    return MethodResult::MachineError("Tried to execute fload without int at local variable index");
+                }
+            },
+            Instruction::DLoad(at) => {
+                if let Some(Some(JValue::Double(value))) = locals.get(*at as usize){
+                    stack.insert(0, JValue::Double(*value));
+                    stack.insert(1, JValue::Second);
+                }else{
+                    return MethodResult::MachineError("Tried to execute dload without long at local variable index");
                 }
             },
             Instruction::ALoad(at) => {
@@ -258,6 +328,121 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 }
             },
 
+            // TODO: merge into one match arm (instr?) and match on the instruction inside
+            Instruction::IAdd => {
+                if let Some(JValue::Int(l)) = stack.get(0)
+                && let Some(JValue::Int(r)) = stack.get(1){
+                    let (val, _) = i32::overflowing_add(*l, *r);
+                    stack.remove(0); stack.remove(0);
+                    stack.insert(0, JValue::Int(val));
+                }else{
+                    return MethodResult::MachineError("Tried to execute iadd without two ints on top of stack");
+                }
+            },
+            Instruction::ISub => {
+                if let Some(JValue::Int(l)) = stack.get(0)
+                && let Some(JValue::Int(r)) = stack.get(1){
+                    let (val, _) = i32::overflowing_add(-*l, *r); // value2 - value1
+                    stack.remove(0); stack.remove(0);
+                    stack.insert(0, JValue::Int(val));
+                }else{
+                    return MethodResult::MachineError("Tried to execute isub without two ints on top of stack");
+                }
+            },
+            Instruction::IMul => {
+                if let Some(JValue::Int(l)) = stack.get(0)
+                && let Some(JValue::Int(r)) = stack.get(1){
+                    let val = *l * *r;
+                    stack.remove(0); stack.remove(0);
+                    stack.insert(0, JValue::Int(val));
+                }else{
+                    return MethodResult::MachineError("Tried to execute imul without two ints on top of stack");
+                }
+            },
+            Instruction::IDiv => {
+                if let Some(JValue::Int(l)) = stack.get(0)
+                && let Some(JValue::Int(r)) = stack.get(1){
+                    let val = *l / *r;
+                    stack.remove(0); stack.remove(0);
+                    stack.insert(0, JValue::Int(val));
+                }else{
+                    return MethodResult::MachineError("Tried to execute idiv without two ints on top of stack");
+                }
+            },
+            Instruction::IRem => {
+                if let Some(JValue::Int(value2)) = stack.get(0)
+                && let Some(JValue::Int(value1)) = stack.get(1){
+                    let val = value1 - (value1 / value2) * value2; // JVMS
+                    stack.remove(0); stack.remove(0);
+                    stack.insert(0, JValue::Int(val));
+                }else{
+                    return MethodResult::MachineError("Tried to execute irem without two ints on top of stack");
+                }
+            },
+            Instruction::IShl => {
+                if let Some(JValue::Int(value2)) = stack.get(0)
+                && let Some(JValue::Int(value1)) = stack.get(1){
+                    let val = *value1 << (*value2 & 0b00011111);
+                    stack.remove(0); stack.remove(0);
+                    stack.insert(0, JValue::Int(val));
+                }else{
+                    return MethodResult::MachineError("Tried to execute ishl without two ints on top of stack");
+                }
+            },
+            Instruction::IShr => {
+                if let Some(JValue::Int(value2)) = stack.get(0)
+                && let Some(JValue::Int(value1)) = stack.get(1){
+                    let val = *value1 << (*value2 & 0b00011111);
+                    stack.remove(0); stack.remove(0);
+                    stack.insert(0, JValue::Int(val));
+                }else{
+                    return MethodResult::MachineError("Tried to execute ishr without two ints on top of stack");
+                }
+            },
+            Instruction::IUshr => {
+                if let Some(JValue::Int(value2)) = stack.get(0)
+                && let Some(JValue::Int(value1)) = stack.get(1){
+                    let val = ((*value1 as u32) << ((*value2 & 0b00011111) as u32)) as i32;
+                    stack.remove(0); stack.remove(0);
+                    stack.insert(0, JValue::Int(val));
+                }else{
+                    return MethodResult::MachineError("Tried to execute iushr without two ints on top of stack");
+                }
+            },
+            Instruction::IAnd => {
+                if let Some(JValue::Int(l)) = stack.get(0)
+                && let Some(JValue::Int(r)) = stack.get(1){
+                    let val = *l & *r;
+                    stack.remove(0); stack.remove(0);
+                    stack.insert(0, JValue::Int(val));
+                }else{
+                    return MethodResult::MachineError("Tried to execute iand without two ints on top of stack");
+                }
+            },
+
+            Instruction::FDiv => {
+                if let Some(JValue::Float(l)) = stack.get(0)
+                && let Some(JValue::Float(r)) = stack.get(1){
+                    let val = *l / *r;
+                    stack.remove(0); stack.remove(0);
+                    stack.insert(0, JValue::Float(val));
+                }else{
+                    return MethodResult::MachineError("Tried to execute fdiv without two floats on top of stack");
+                }
+            },
+
+            Instruction::DAdd => {
+                if let Some(JValue::Double(l)) = stack.get(0)
+                && let Some(JValue::Double(r)) = stack.get(2){
+                    let val = *l + *r;
+                    stack.remove(0); stack.remove(0); stack.remove(0); stack.remove(0);
+                    stack.insert(0, JValue::Double(val));
+                    stack.insert(1, JValue::Second);
+                }else{
+                    return MethodResult::MachineError("Tried to execute dadd without two ints on top of stack");
+                }
+            },
+
             Instruction::Goto(offset) => {
                 let target = (*idx as isize) + (*offset as isize);
                 if target < 0{
@@ -266,6 +451,36 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 i = bytecode_idx_to_instr_idx(target as usize, code);
                 was_jump = true;
             },
+            
+            Instruction::LCmp => {
+                if let Some(JValue::Long(val2)) = stack.get(0)
+                && let Some(JValue::Long(val1)) = stack.get(2){
+                    let val = if val1 == val2{ 0 }
+                        else if val1 > val2{ 1 }
+                        else{ -1 };
+                    stack.remove(0); stack.remove(0); stack.remove(0); stack.remove(0);
+                    stack.insert(0, JValue::Int(val));
+                }else{
+                    return MethodResult::MachineError("Tried to execute lcmp without two longs on top of stack");
+                }
+            },
+            Instruction::FCmpL | Instruction::FCmpG => {
+                if let Some(JValue::Float(val2)) = stack.get(0)
+                && let Some(JValue::Float(val1)) = stack.get(1){
+                    let val = if val1 == val2{ 0 }
+                        else if val1 > val2{ 1 }
+                        else if val1 < val2{ -1 }
+                        else{
+                            if *instr == Instruction::FCmpG{ 1 }
+                            else{ -1 }
+                        };
+                    stack.remove(0); stack.remove(0);
+                    stack.insert(0, JValue::Int(val));
+                }else{
+                    return MethodResult::MachineError("Tried to execute fcmp* without two floats on top of stack");
+                }
+            },
+            
             Instruction::IfEq(offset) => {
                 if let JValue::Int(value) = stack.remove(0){
                     if value == 0{
@@ -280,6 +495,182 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     return MethodResult::MachineError("Tried to execute ifeq without int on top of stack");
                 }
             },
+            Instruction::IfNe(offset) => {
+                if let JValue::Int(value) = stack.remove(0){
+                    if value != 0{
+                        let target = (*idx as isize) + (*offset as isize);
+                        if target < 0{
+                            panic!("Bad goto offset");
+                        }
+                        i = bytecode_idx_to_instr_idx(target as usize, code);
+                        was_jump = true;
+                    }
+                }else{
+                    return MethodResult::MachineError("Tried to execute ifeq without int on top of stack");
+                }
+            },
+            Instruction::IfLt(offset) => {
+                if let JValue::Int(value) = stack.remove(0){
+                    if value < 0{
+                        let target = (*idx as isize) + (*offset as isize);
+                        if target < 0{
+                            panic!("Bad goto offset");
+                        }
+                        i = bytecode_idx_to_instr_idx(target as usize, code);
+                        was_jump = true;
+                    }
+                }else{
+                    return MethodResult::MachineError("Tried to execute iflt without int on top of stack");
+                }
+            },
+            Instruction::IfGe(offset) => {
+                if let JValue::Int(value) = stack.remove(0){
+                    if value >= 0{
+                        let target = (*idx as isize) + (*offset as isize);
+                        if target < 0{
+                            panic!("Bad goto offset");
+                        }
+                        i = bytecode_idx_to_instr_idx(target as usize, code);
+                        was_jump = true;
+                    }
+                }else{
+                    return MethodResult::MachineError("Tried to execute ifge without int on top of stack");
+                }
+            },
+            Instruction::IfGt(offset) => {
+                if let JValue::Int(value) = stack.remove(0){
+                    if value > 0{
+                        let target = (*idx as isize) + (*offset as isize);
+                        if target < 0{
+                            panic!("Bad goto offset");
+                        }
+                        i = bytecode_idx_to_instr_idx(target as usize, code);
+                        was_jump = true;
+                    }
+                }else{
+                    return MethodResult::MachineError("Tried to execute ifgt without int on top of stack");
+                }
+            },
+            Instruction::IfLe(offset) => {
+                if let JValue::Int(value) = stack.remove(0){
+                    if value <= 0{
+                        let target = (*idx as isize) + (*offset as isize);
+                        if target < 0{
+                            panic!("Bad goto offset");
+                        }
+                        i = bytecode_idx_to_instr_idx(target as usize, code);
+                        was_jump = true;
+                    }
+                }else{
+                    return MethodResult::MachineError("Tried to execute ifle without int on top of stack");
+                }
+            },
+
+            Instruction::IfICmpEq(offset) => {
+                if let JValue::Int(value2) = stack.remove(0)
+                && let JValue::Int(value1) = stack.remove(0){
+                    if value1 == value2{
+                        let target = (*idx as isize) + (*offset as isize);
+                        if target < 0{
+                            panic!("Bad goto offset");
+                        }
+                        i = bytecode_idx_to_instr_idx(target as usize, code);
+                        was_jump = true;
+                    }
+                }else{
+                    return MethodResult::MachineError("Tried to execute if_icmpeq without int on top of stack");
+                }
+            },
+            Instruction::IfICmpNe(offset) => {
+                if let JValue::Int(value2) = stack.remove(0)
+                && let JValue::Int(value1) = stack.remove(0){
+                    if value1 != value2{
+                        let target = (*idx as isize) + (*offset as isize);
+                        if target < 0{
+                            panic!("Bad goto offset");
+                        }
+                        i = bytecode_idx_to_instr_idx(target as usize, code);
+                        was_jump = true;
+                    }
+                }else{
+                    return MethodResult::MachineError("Tried to execute if_icmpne without int on top of stack");
+                }
+            },
+            Instruction::IfICmpLt(offset) => {
+                if let JValue::Int(value2) = stack.remove(0)
+                && let JValue::Int(value1) = stack.remove(0){
+                    if value1 < value2{
+                        let target = (*idx as isize) + (*offset as isize);
+                        if target < 0{
+                            panic!("Bad goto offset");
+                        }
+                        i = bytecode_idx_to_instr_idx(target as usize, code);
+                        was_jump = true;
+                    }
+                }else{
+                    return MethodResult::MachineError("Tried to execute if_icmpeq without int on top of stack");
+                }
+            },
+            Instruction::IfICmpGe(offset) => {
+                if let JValue::Int(value2) = stack.remove(0)
+                && let JValue::Int(value1) = stack.remove(0){
+                    if value1 >= value2{
+                        let target = (*idx as isize) + (*offset as isize);
+                        if target < 0{
+                            panic!("Bad goto offset");
+                        }
+                        i = bytecode_idx_to_instr_idx(target as usize, code);
+                        was_jump = true;
+                    }
+                }else{
+                    return MethodResult::MachineError("Tried to execute if_icmpge without int on top of stack");
+                }
+            },
+            Instruction::IfICmpGt(offset) => {
+                if let JValue::Int(value2) = stack.remove(0)
+                && let JValue::Int(value1) = stack.remove(0){
+                    if value1 > value2{
+                        let target = (*idx as isize) + (*offset as isize);
+                        if target < 0{
+                            panic!("Bad goto offset");
+                        }
+                        i = bytecode_idx_to_instr_idx(target as usize, code);
+                        was_jump = true;
+                    }
+                }else{
+                    return MethodResult::MachineError("Tried to execute if_icmpeq without int on top of stack");
+                }
+            },
+            Instruction::IfICmpLe(offset) => {
+                if let JValue::Int(value2) = stack.remove(0)
+                && let JValue::Int(value1) = stack.remove(0){
+                    if value1 <= value2{
+                        let target = (*idx as isize) + (*offset as isize);
+                        if target < 0{
+                            panic!("Bad goto offset");
+                        }
+                        i = bytecode_idx_to_instr_idx(target as usize, code);
+                        was_jump = true;
+                    }
+                }else{
+                    return MethodResult::MachineError("Tried to execute if_icmpeq without int on top of stack");
+                }
+            },
+
+            Instruction::IfNull(offset) => {
+                if let JValue::Reference(r) = stack.remove(0){
+                    if let None = r{
+                        let target = (*idx as isize) + (*offset as isize);
+                        if target < 0{
+                            panic!("Bad goto offset");
+                        }
+                        i = bytecode_idx_to_instr_idx(target as usize, code);
+                        was_jump = true;
+                    }
+                }else{
+                    return MethodResult::MachineError("Tried to execute ifnonnull without reference on top of stack");
+                }
+            },
             Instruction::IfNonnull(offset) => {
                 if let JValue::Reference(r) = stack.remove(0){
                     if let Some(_) = r{
@@ -292,6 +683,53 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     }
                 }else{
                     return MethodResult::MachineError("Tried to execute ifnonnull without reference on top of stack");
+                }
+            },
+
+            Instruction::I2L => {
+                if let JValue::Int(i) = stack.remove(0){
+                    let val = i as i64;
+                    stack.insert(0, JValue::Long(val));
+                    stack.insert(1, JValue::Second);
+                }else{
+                    return MethodResult::MachineError("Tried to execute i2l without int on top of stack");
+                }
+            },
+            Instruction::L2I => {
+                if let JValue::Long(l) = stack.remove(0){
+                    let val = l as i32;
+                    stack.remove(0);
+                    stack.insert(0, JValue::Int(val));
+                }else{
+                    return MethodResult::MachineError("Tried to execute l2i without long on top of stack");
+                }
+            },
+            Instruction::L2F => {
+                if let JValue::Long(l) = stack.remove(0){
+                    let val = l as f32;
+                    stack.remove(0);
+                    stack.insert(0, JValue::Float(val));
+                }else{
+                    return MethodResult::MachineError("Tried to execute l2f without long on top of stack");
+                }
+            },
+            Instruction::F2D => {
+                if let JValue::Float(l) = stack.remove(0){
+                    let val = l as f64;
+                    stack.insert(0, JValue::Double(val));
+                    stack.insert(1, JValue::Second);
+                }else{
+                    return MethodResult::MachineError("Tried to execute f2d without float on top of stack");
+                }
+            },
+            Instruction::D2L => {
+                if let JValue::Double(l) = stack.remove(0){
+                    let val = l as i64;
+                    stack.remove(0);
+                    stack.insert(0, JValue::Long(val));
+                    stack.insert(1, JValue::Second);
+                }else{
+                    return MethodResult::MachineError("Tried to execute d2l without float on top of stack");
                 }
             },
 
@@ -565,4 +1003,16 @@ fn resolve_signature(target: &MemberRef) -> Vec<MaybeClass>{
         .expect("Tried to invoke method that does not exist")
         .parameters
         .clone();
+}
+
+fn to_short(v: i32) -> i32{
+    return v.clamp(i16::MIN as i32, i16::MAX as i32);
+}
+
+fn to_char(v: i32) -> i32{
+    return v.clamp(u16::MIN as i32, u16::MAX as i32);
+}
+
+fn to_byte(v: i32) -> i32{
+    return v.clamp(i8::MIN as i32, i8::MAX as i32);
 }

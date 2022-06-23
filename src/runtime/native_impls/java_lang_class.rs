@@ -1,4 +1,4 @@
-use crate::runtime::{jvalue::JValue, interpreter::MethodResult, objects, heap};
+use crate::runtime::{jvalue::JValue, interpreter::MethodResult, objects};
 
 pub fn builtin_class_native(name_and_desc: &str) -> fn(Vec<JValue>) -> MethodResult{
     return match name_and_desc{
