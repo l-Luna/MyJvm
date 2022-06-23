@@ -329,6 +329,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                         if let Ok(read) = array.data.read(){
                             if let JObjectData::Array(size, values) = &*read{
                                 if *array_idx < 0 || *array_idx >= (*size as i32){
+                                    println!("baload AIOOBE: {} vs {}, stack: {:?}", *array_idx, *size, &stack);
                                     return MethodResult::Throw(update_trace(&trace, *idx, method, owner));
                                 }
                                 let idx = *array_idx as usize;
@@ -336,10 +337,11 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                             }
                         };
                     }else{
+                        println!("baload NPE");
                         return MethodResult::Throw(update_trace(&trace, *idx, method, owner));
                     }
 
-                    stack.remove(0); stack.remove(0);
+                    stack.remove(1); stack.remove(1); // don't remove what we just loaded
                 }else{
                     println!("stack is {:?} in {}", &stack, &method.name);
                     return MethodResult::MachineError("Tried to execute baload without array & index on top of stack");
@@ -418,7 +420,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
             Instruction::IShr => {
                 if let Some(JValue::Int(value2)) = stack.get(0)
                 && let Some(JValue::Int(value1)) = stack.get(1){
-                    let val = *value1 << (*value2 & 0b00011111);
+                    let val = *value1 >> (*value2 & 0b00011111);
                     stack.remove(0); stack.remove(0);
                     stack.insert(0, JValue::Int(val));
                 }else{
@@ -429,7 +431,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
             Instruction::IUshr => {
                 if let Some(JValue::Int(value2)) = stack.get(0)
                 && let Some(JValue::Int(value1)) = stack.get(1){
-                    let val = ((*value1 as u32) << ((*value2 & 0b00011111) as u32)) as i32;
+                    let val = ((*value1 as u32) >> ((*value2 & 0b00011111) as u32)) as i32;
                     stack.remove(0); stack.remove(0);
                     stack.insert(0, JValue::Int(val));
                 }else{
