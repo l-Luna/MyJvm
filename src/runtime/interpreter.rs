@@ -450,6 +450,16 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     return MethodResult::MachineError("Tried to execute iand without two ints on top of stack");
                 }
             },
+            Instruction::IOr => {
+                if let Some(JValue::Int(l)) = stack.get(0)
+                && let Some(JValue::Int(r)) = stack.get(1){
+                    let val = *l | *r;
+                    stack.remove(0); stack.remove(0);
+                    stack.insert(0, JValue::Int(val));
+                }else{
+                    return MethodResult::MachineError("Tried to execute ior without two ints on top of stack");
+                }
+            },
 
             Instruction::FDiv => {
                 if let Some(JValue::Float(l)) = stack.get(0)
@@ -696,6 +706,37 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 }
             },
 
+            Instruction::IfACmpEq(offset) => {
+                if let JValue::Reference(value2) = stack.remove(0)
+                && let JValue::Reference(value1) = stack.remove(0){
+                    if value1 == value2{
+                        let target = (*idx as isize) + (*offset as isize);
+                        if target < 0{
+                            panic!("Bad goto offset");
+                        }
+                        i = bytecode_idx_to_instr_idx(target as usize, code);
+                        was_jump = true;
+                    }
+                }else{
+                    return MethodResult::MachineError("Tried to execute if_acmpeq without two refs on top of stack");
+                }
+            },
+            Instruction::IfACmpNe(offset) => {
+                if let JValue::Reference(value2) = stack.remove(0)
+                && let JValue::Reference(value1) = stack.remove(0){
+                    if value1 != value2{
+                        let target = (*idx as isize) + (*offset as isize);
+                        if target < 0{
+                            panic!("Bad goto offset");
+                        }
+                        i = bytecode_idx_to_instr_idx(target as usize, code);
+                        was_jump = true;
+                    }
+                }else{
+                    return MethodResult::MachineError("Tried to execute if_acmpne without two refs on top of stack");
+                }
+            },
+
             Instruction::IfNull(offset) => {
                 if let JValue::Reference(r) = stack.remove(0){
                     if let None = r{
@@ -769,6 +810,13 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     stack.insert(1, JValue::Second);
                 }else{
                     return MethodResult::MachineError("Tried to execute d2l without float on top of stack");
+                }
+            },
+            Instruction::I2C => {
+                if let JValue::Int(i) = stack.remove(0){
+                    stack.insert(0, JValue::Int(to_char(i)));
+                }else{
+                    return MethodResult::MachineError("Tried to execute i2c without int on top of stack");
                 }
             },
 
@@ -991,6 +1039,21 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     stack.remove(1); // 0 is the length we just pushed
                 }else{
                     return MethodResult::MachineError("Tried to execute arraylength without reference on top of stack");
+                }
+            },
+
+            Instruction::InstanceOf(t) => {
+                if let JValue::Reference(f) = stack.remove(0){
+                    if value > 0{
+                        let target = (*idx as isize) + (*offset as isize);
+                        if target < 0{
+                            panic!("Bad goto offset");
+                        }
+                        i = bytecode_idx_to_instr_idx(target as usize, code);
+                        was_jump = true;
+                    }
+                }else{
+                    return MethodResult::MachineError("Tried to execute instanceof without reference on top of stack");
                 }
             },
 
