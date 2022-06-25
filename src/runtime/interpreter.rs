@@ -31,13 +31,13 @@ impl StackTrace{
 impl std::ops::Deref for StackTrace{
     type Target = Vec<StackTraceEntry>;
 
-    fn deref(&self) -> &Self::Target {
+    fn deref(&self) -> &Self::Target{
         return &self.0;
     }
 }
 
 impl std::ops::DerefMut for StackTrace{
-    fn deref_mut(&mut self) -> &mut Self::Target {
+    fn deref_mut(&mut self) -> &mut Self::Target{
         return &mut self.0;
     }
 }
@@ -285,7 +285,6 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 if let Some(Some(JValue::Int(value))) = locals.get(*at as usize){
                     stack.insert(0, JValue::Int(*value));
                 }else{
-                    println!("Locals: {:?}, params: {:?}", &locals, &args);
                     return MethodResult::MachineError("Tried to execute iload without int at local variable index");
                 }
             },
@@ -348,6 +347,9 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 }
             },
 
+            Instruction::Pop => {
+                stack.remove(0);
+            },
             Instruction::Dup => {
                 if let Some(value) = stack.get(0){
                     stack.insert(0, value.clone());
@@ -807,6 +809,11 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
             },
             Instruction::Return => return MethodResult::Finish,
 
+            Instruction::AThrow => {
+                let tr = update_trace(&trace, *idx, method, &owner);
+                return MethodResult::Throw(tr);
+            },
+
             Instruction::GetField(target) => {
                 let owner = heap::get_or_create_bt_class(format!("L{};", target.owner_name.clone()))
                     .expect("Could not load field owner")
@@ -897,13 +904,13 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 args.insert(0, receiver.clone());
 
                 if let JValue::Reference(Some(r)) = receiver{
-                    let class = &r.deref().class;
-                    let target = class.virtual_method(&target.name_and_type)
+                    let receiver_class = &r.deref().class;
+                    let (target, class) = receiver_class.virtual_method(&target.name_and_type)
                         .expect(format!("Tried to execute invokevirtual for method with {:?} that doesn't exist on receiver of type {} inside {}.{}{}", &target, &r.deref().class.name, &owner.name, &method.name, &method.descriptor()).as_str());
                     let result = execute(&*class, &target, args, update_trace(&trace, *idx, method, owner));
                     // TODO: exception handling
                     match result{
-                        MethodResult::FinishWithValue(v) => stack.push(v),
+                        MethodResult::FinishWithValue(v) => stack.insert(0, v),
                         MethodResult::Finish => {},
                         MethodResult::Throw(e) => return MethodResult::Throw(e),
                         MethodResult::MachineError(e) => return MethodResult::MachineError(e),
@@ -926,7 +933,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     }
                     let result = execute(&*class, &target, args, update_trace(&trace, *idx, method, owner));
                     match result{
-                        MethodResult::FinishWithValue(v) => stack.push(v),
+                        MethodResult::FinishWithValue(v) => stack.insert(0, v),
                         MethodResult::Finish => {},
                         MethodResult::Throw(e) => return MethodResult::Throw(e),
                         MethodResult::MachineError(e) => return MethodResult::MachineError(e),
@@ -952,7 +959,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     let result = execute(owner, &target, args, update_trace(&trace, *idx, method, owner));
                     // TODO: exception handling
                     match result{
-                        MethodResult::FinishWithValue(v) => stack.push(v),
+                        MethodResult::FinishWithValue(v) => stack.insert(0, v),
                         MethodResult::Finish => {},
                         MethodResult::Throw(e) => return MethodResult::Throw(e),
                         MethodResult::MachineError(e) => return MethodResult::MachineError(e),
@@ -1086,7 +1093,7 @@ fn resolve_signature(target: &MemberRef) -> Vec<MaybeClass>{
         .expect("Could not load field owner");
     return owner.virtual_method(&target.name_and_type)
         .expect("Tried to invoke method that does not exist")
-        .parameters
+        .0.parameters
         .clone();
 }
 

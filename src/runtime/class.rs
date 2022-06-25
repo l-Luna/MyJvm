@@ -67,10 +67,10 @@ impl Class{
         return None;
     }
 
-    pub fn virtual_method(&self, target: &NameAndType) -> Option<&Method>{
+    pub fn virtual_method(&self, target: &NameAndType) -> Option<(&Method, &Class)>{
         for method in &self.methods{
             if method.name == target.name && method.descriptor() == target.descriptor {
-                return Some(method);
+                return Some((method, self));
             }
         }
         if let Some(c) = &self.super_class{
