@@ -317,7 +317,8 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 }
             },
 
-            Instruction::BALoad => {
+            // TODO: validate array type
+            Instruction::BALoad | Instruction::AALoad => {
                 if let Some(JValue::Reference(array_ref)) = stack.get(1)
                 && let Some(JValue::Int(array_idx)) = stack.get(0){
                     let array_ref: &Option<JRef> = array_ref; // fix IDE highlighting
@@ -333,13 +334,12 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                             }
                         };
                     }else{
-                        return MethodResult::Throw(update_trace(&trace, *idx, method, owner), "NPE for BALoad");
+                        return MethodResult::Throw(update_trace(&trace, *idx, method, owner), "NPE for _ALoad");
                     }
 
                     stack.remove(1); stack.remove(1); // don't remove what we just loaded
                 }else{
-                    println!("stack is {:?} in {}", &stack, &method.name);
-                    return MethodResult::MachineError("Tried to execute baload without array & index on top of stack");
+                    return MethodResult::MachineError("Tried to execute _aload without array & index on top of stack");
                 }
             },
 
@@ -457,6 +457,73 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 }
             },
 
+            Instruction::LAdd => {
+                if let Some(JValue::Long(l)) = stack.get(0)
+                && let Some(JValue::Long(r)) = stack.get(2){
+                    let val = *l + *r;
+                    stack.remove(0); stack.remove(0); stack.remove(0); stack.remove(0);
+                    stack.insert(0, JValue::Long(val));
+                    stack.insert(1, JValue::Second);
+                }else{
+                    return MethodResult::MachineError("Tried to execute ladd without two longs on top of stack");
+                }
+            },
+            Instruction::LSub => {
+                if let Some(JValue::Long(value2)) = stack.get(0)
+                && let Some(JValue::Long(value1)) = stack.get(2){
+                    let val = *value1 - *value2;
+                    stack.remove(0); stack.remove(0); stack.remove(0); stack.remove(0);
+                    stack.insert(0, JValue::Long(val));
+                    stack.insert(1, JValue::Second);
+                }else{
+                    return MethodResult::MachineError("Tried to execute lsub without two longs on top of stack");
+                }
+            },
+            Instruction::LMul => {
+                if let Some(JValue::Long(value2)) = stack.get(0)
+                && let Some(JValue::Long(value1)) = stack.get(2){
+                    let (val, _) = i64::overflowing_mul(*value1, *value2);
+                    stack.remove(0); stack.remove(0); stack.remove(0); stack.remove(0);
+                    stack.insert(0, JValue::Long(val));
+                    stack.insert(1, JValue::Second);
+                }else{
+                    return MethodResult::MachineError("Tried to execute lmul without two longs on top of stack");
+                }
+            },
+            Instruction::LShl => {
+                if let Some(JValue::Int(value2)) = stack.get(0)
+                && let Some(JValue::Long(value1)) = stack.get(1){
+                    let val = *value1 << (*value2 & 0b00111111);
+                    stack.remove(0); stack.remove(0); stack.remove(0);
+                    stack.insert(0, JValue::Long(val));
+                    stack.insert(1, JValue::Second);
+                }else{
+                    return MethodResult::MachineError("Tried to execute lshl without int+long on top of stack");
+                }
+            },
+            Instruction::LShr => {
+                if let Some(JValue::Int(value2)) = stack.get(0)
+                && let Some(JValue::Long(value1)) = stack.get(1){
+                    let val = *value1 >> (*value2 & 0b00111111);
+                    stack.remove(0); stack.remove(0); stack.remove(0);
+                    stack.insert(0, JValue::Long(val));
+                    stack.insert(1, JValue::Second);
+                }else{
+                    return MethodResult::MachineError("Tried to execute lshl without int+long on top of stack");
+                }
+            },
+            Instruction::LAnd => {
+                if let Some(JValue::Long(value2)) = stack.get(0)
+                && let Some(JValue::Long(value1)) = stack.get(2){
+                    let val = *value1 & *value2;
+                    stack.remove(0); stack.remove(0); stack.remove(0); stack.remove(0);
+                    stack.insert(0, JValue::Long(val));
+                    stack.insert(1, JValue::Second);
+                }else{
+                    return MethodResult::MachineError("Tried to execute land without two longs on top of stack");
+                }
+            },
+
             Instruction::FDiv => {
                 if let Some(JValue::Float(l)) = stack.get(0)
                 && let Some(JValue::Float(r)) = stack.get(1){
@@ -476,7 +543,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     stack.insert(0, JValue::Double(val));
                     stack.insert(1, JValue::Second);
                 }else{
-                    return MethodResult::MachineError("Tried to execute dadd without two ints on top of stack");
+                    return MethodResult::MachineError("Tried to execute dadd without two doubles on top of stack");
                 }
             },
 
