@@ -1065,6 +1065,39 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     return MethodResult::MachineError("Tried to execute invokevirtual without object on stack");
                 }
             },
+            Instruction::InvokeInterface(target) => {
+                let params = resolve_signature(&target);
+                let mut args = Vec::with_capacity(params.len() + 1);
+                for _ in 0..params.len(){
+                    args.insert(0, stack.remove(0));
+                }
+                let receiver = stack.remove(0);
+                args.insert(0, receiver.clone());
+
+                if let JValue::Reference(Some(r)) = receiver{
+                    let receiver_class = &r.deref().class;
+                    let (target, class) = receiver_class.interface_method(&target.name_and_type)
+                        .expect(format!("Tried to execute invokeinterface for method with {:?} that doesn't exist on receiver of type {} inside {}.{}{}", &target, &r.deref().class.name, &owner.name, &method.name, &method.descriptor()).as_str());
+                    let result = execute(&*class, &target, args, update_trace(&trace, *idx, method, owner));
+                    // TODO: exception handling
+                    match result{
+                        MethodResult::FinishWithValue(v) => {
+                            stack.insert(0, v);
+                            match v{
+                                JValue::Long(_) | JValue::Double(_) => stack.insert(1, JValue::Second),
+                                _ => {}
+                            }
+                        },
+                        MethodResult::Finish => {},
+                        MethodResult::Throw(s, e) => return MethodResult::Throw(s, e),
+                        MethodResult::MachineError(e) => return MethodResult::MachineError(e),
+                    }
+                }else if let JValue::Reference(None) = receiver{
+                    return MethodResult::Throw(update_trace(&trace, *idx, method, owner), "NPE for invokeinterface");
+                }else{
+                    return MethodResult::MachineError("Tried to execute invokeinterface without object on stack");
+                }
+            },
             Instruction::InvokeStatic(s) => {
                 let owner_name = &s.owner_name;
                 let class = heap::get_or_create_bt_class(format!("L{};", owner_name)).unwrap().ensure_initialized().unwrap();

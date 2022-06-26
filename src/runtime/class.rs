@@ -70,7 +70,7 @@ impl Class{
 
     pub fn virtual_method(&self, target: &NameAndType) -> Option<(&Method, &Class)>{
         for method in &self.methods{
-            if method.name == target.name && method.descriptor() == target.descriptor {
+            if method.name == target.name && method.descriptor() == target.descriptor{
                 return Some((method, self));
             }
         }
@@ -80,10 +80,10 @@ impl Class{
         return None;
     }
 
-    pub fn interface_method(&self, target: &NameAndType) -> Option<&Method>{
+    pub fn interface_method(&self, target: &NameAndType) -> Option<(&Method, &Class)>{
         for method in &self.methods{
-            if method.name == target.name && method.descriptor() == target.descriptor {
-                return Some(method);
+            if method.name == target.name && method.descriptor() == target.descriptor{
+                return Some((method, self));
             }
         }
         if let Some(c) = &self.super_class{
