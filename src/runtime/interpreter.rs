@@ -55,9 +55,9 @@ impl std::fmt::Display for StackTrace{
 
 #[derive(Debug, Clone)]
 pub struct StackTraceEntry{
-    class_name: String,
-    method_name: String,
-    line_number: Option<u16>
+    pub class_name: String,
+    pub method_name: String,
+    pub line_number: Option<u16>
 }
 
 impl StackTraceEntry {
@@ -73,8 +73,11 @@ pub fn execute(owner: &Class, method: &Method, args: Vec<JValue>, trace: StackTr
     match &method.code{
         class::MethodImpl::Bytecode(bytecode) => interpret(owner, method, args, bytecode, trace),
         class::MethodImpl::Native => {
-            match native_impls::run_builtin_native(&owner.name, &format!("{}{}", method.name, method.descriptor()), args){
-                MethodResult::Throw(_, err) => MethodResult::Throw(update_trace(&trace, 0, method, owner), err),
+            let owner_name = &owner.name;
+            let name_and_desc = &format!("{}{}", method.name, method.descriptor());
+            let trace_argument = &trace;
+            match native_impls::builtin_native(owner_name, name_and_desc, trace_argument, args){
+                MethodResult::Throw(_, err) => MethodResult::Throw(update_trace(&trace, 0, method, &owner), err),
                 u => u
             }
         },
