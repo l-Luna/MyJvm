@@ -9,6 +9,7 @@ pub struct Class{
     pub super_class: Option<ClassRef>, // None for Object and primitives
     pub interfaces: Vec<ClassRef>,
     pub loader_name: String,
+    pub initialized: RwLock<bool>,
     pub instance_fields: Vec<Field>,
     pub static_fields: Vec<RwLock<(Field, JValue)>>,
     pub methods: Vec<Method>
@@ -136,8 +137,12 @@ impl MaybeClass{
         };
     }
 
-    pub fn ensure_loaded(&self) -> Result<ClassRef, String> {
-        return heap::ensure_loaded(&self);
+    pub fn ensure_initialized(&self) -> Result<ClassRef, String>{
+        return heap::ensure_loaded(&self, true);
+    }
+
+    pub fn ensure_loaded(&self) -> Result<ClassRef, String>{
+        return heap::ensure_loaded(&self, false);
     }
 }
 
@@ -218,6 +223,7 @@ pub fn link_class(classfile: Classfile, loader: Arc<dyn ClassLoader>) -> Result<
         name: binary_to_fq_name(classfile.name.clone()),
         descriptor: format!("L{};", classfile.name.clone()),
         loader_name: loader.name(),
+        initialized: RwLock::new(false),
         instance_fields,
         static_fields,
         methods: all_methods,

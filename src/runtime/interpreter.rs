@@ -1,5 +1,3 @@
-use std::ops::Deref;
-
 use parser::classfile_structs::{Code, Instruction};
 use runtime::jvalue::JValue;
 use runtime::{native_impls, objects};
@@ -863,7 +861,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
             Instruction::GetField(target) => {
                 let owner = heap::get_or_create_bt_class(format!("L{};", target.owner_name.clone()))
                     .expect("Could not load field owner")
-                    .ensure_loaded()
+                    .ensure_initialized()
                     .expect("Could not load field owner");
                 let mut was_static = false;
                 for f in &owner.static_fields{
@@ -906,7 +904,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
             Instruction::PutField(target) => {
                 let field_owner = heap::get_or_create_bt_class(format!("L{};", target.owner_name.clone()))
                     .expect("Could not load field owner")
-                    .ensure_loaded()
+                    .ensure_initialized()
                     .expect("Could not load field owner");
                 let mut was_static = false;
                 let value = stack.remove(0);
@@ -956,7 +954,13 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     let result = execute(&*class, &target, args, update_trace(&trace, *idx, method, owner));
                     // TODO: exception handling
                     match result{
-                        MethodResult::FinishWithValue(v) => stack.insert(0, v),
+                        MethodResult::FinishWithValue(v) => {
+                            stack.insert(0, v);
+                            match v{
+                                JValue::Long(_) | JValue::Double(_) => stack.insert(1, JValue::Second),
+                                _ => {}
+                            }
+                        },
                         MethodResult::Finish => {},
                         MethodResult::Throw(s, e) => return MethodResult::Throw(s, e),
                         MethodResult::MachineError(e) => return MethodResult::MachineError(e),
@@ -969,7 +973,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
             },
             Instruction::InvokeStatic(s) => {
                 let owner_name = &s.owner_name;
-                let class = heap::get_or_create_bt_class(format!("L{};", owner_name)).unwrap().ensure_loaded().unwrap();
+                let class = heap::get_or_create_bt_class(format!("L{};", owner_name)).unwrap().ensure_initialized().unwrap();
                 if let Some(target) = class.static_method(&s.name_and_type){
                     // TODO: dedup code
                     let num_params = target.parameters.len();
@@ -979,7 +983,13 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     }
                     let result = execute(&*class, &target, args, update_trace(&trace, *idx, method, owner));
                     match result{
-                        MethodResult::FinishWithValue(v) => stack.insert(0, v),
+                        MethodResult::FinishWithValue(v) => {
+                            stack.insert(0, v);
+                            match v{
+                                JValue::Long(_) | JValue::Double(_) => stack.insert(1, JValue::Second),
+                                _ => {}
+                            }
+                        },
                         MethodResult::Finish => {},
                         MethodResult::Throw(s, e) => return MethodResult::Throw(s, e),
                         MethodResult::MachineError(e) => return MethodResult::MachineError(e),
@@ -1005,7 +1015,13 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     let result = execute(owner, &target, args, update_trace(&trace, *idx, method, owner));
                     // TODO: exception handling
                     match result{
-                        MethodResult::FinishWithValue(v) => stack.insert(0, v),
+                        MethodResult::FinishWithValue(v) => {
+                            stack.insert(0, v);
+                            match v{
+                                JValue::Long(_) | JValue::Double(_) => stack.insert(1, JValue::Second),
+                                _ => {}
+                            }
+                        },
                         MethodResult::Finish => {},
                         MethodResult::Throw(s, e) => return MethodResult::Throw(s, e),
                         MethodResult::MachineError(e) => return MethodResult::MachineError(e),
@@ -1064,10 +1080,11 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 stack.insert(0, objects::create_new(class));
             },
             Instruction::NewArray(class_name) => {
+                // TODO: check everywhere else too for linking VS initializing
                 let class = heap::get_or_create_bt_class(class_name.clone())
-                    .expect("Could not parse class for anewarray instruction!")
+                    .expect("Could not parse class for [a]newarray instruction!")
                     .ensure_loaded()
-                    .expect("Could not link class for anewarray instruction!");
+                    .expect("Could not link class for [a]newarray instruction!");
                 if let JValue::Int(l) = stack.remove(0){
                     if l < 0{
                         // TODO: synthesize NegativeArraySizeException
@@ -1151,7 +1168,7 @@ fn set_and_pad<T>(list: &mut Vec<T>, idx: usize, value: T, default: T) where T: 
 fn resolve_signature(target: &MemberRef) -> Vec<MaybeClass>{
     let owner = heap::get_or_create_bt_class(format!("L{};", target.owner_name.clone()))
         .expect("Could not load field owner")
-        .ensure_loaded()
+        .ensure_initialized()
         .expect("Could not load field owner");
     return owner.virtual_method(&target.name_and_type)
         .expect("Tried to invoke method that does not exist")

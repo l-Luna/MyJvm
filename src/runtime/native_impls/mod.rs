@@ -9,6 +9,7 @@ mod java_lang_string;
 mod java_lang_throwable;
 
 mod jdk_internal_misc_unsafe;
+mod jdk_internal_misc_cds;
 
 pub fn run_builtin_native(owner: &String, name_and_desc: &String, args: Vec<JValue>) -> MethodResult{
     return builtin_native(owner, name_and_desc)(args);
@@ -24,6 +25,7 @@ fn builtin_native(owner: &String, name_and_desc: &String) -> fn(Vec<JValue>) -> 
         "java.lang.Throwable" => java_lang_throwable::builtin_throwable_native(name_and_desc),
 
         "jdk.internal.misc.Unsafe" => jdk_internal_misc_unsafe::builtin_unsafe_native(name_and_desc),
+        "jdk.internal.misc.CDS" => jdk_internal_misc_cds::builtin_cds_native(name_and_desc),
 
         _ => panic!("Unknown builtin native owner {} for method {}", owner, name_and_desc)
     }

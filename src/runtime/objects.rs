@@ -120,13 +120,13 @@ fn array_of(objects: Vec<JValue>) -> JValue{
 fn string_class() -> ClassRef{
     return heap::get_or_create_bt_class("Ljava/lang/String;".to_string())
         .expect("Could not parse java.lang.String!")
-        .ensure_loaded()
+        .ensure_initialized()
         .expect("Could not link java.lang.String!");
 }
 
 fn class_class() -> ClassRef{
     return heap::get_or_create_bt_class("Ljava/lang/Class;".to_string())
         .expect("Could not parse java.lang.Class!")
-        .ensure_loaded()
+        .ensure_initialized()
         .expect("Could not link java.lang.Class!");
 }

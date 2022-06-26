@@ -44,7 +44,7 @@ pub fn setup(){
     }
 
     for primitive in classes::create_primitive_classes(){
-        add_bt_class(primitive);
+        add_bt_class(primitive, true);
     }
     classes::setup_java_base();
 }
@@ -82,20 +82,26 @@ pub fn gc(){
 // Class handling
 // TODO: move to classes.rs?
 
-/// Adds a loaded class under the given classloader, and invokes its static initializer.
-pub fn add_class(class: Class, loader_name: String){
+/// Adds a loaded class under the given classloader, and optionally invokes its static initializer.
+pub fn add_class(mut class: Class, loader_name: String, initialize: bool){
     let class_desc = class.descriptor.clone();
+    if initialize{
+        // while we only actually initialize it later, its easier to set now and should not have an observable difference
+        class.initialized = RwLock::new(true);
+    }
     unsafe{ add_to_map_list(loader_name.clone(), Arc::new(class), &LOADED_CLASSES); }
     
     // run client init
     // TODO: don't repeat this (get().unwrap().ensure().unwrap()) as much
     let class = get_or_create_bt_class(class_desc.clone()).unwrap().ensure_loaded().unwrap();
-    if let Some(clinit) = class.static_method(&constants::clinit()){
-        match interpreter::execute(&class, clinit, Vec::new(), StackTrace::new()){
-            MethodResult::FinishWithValue(_) |
-            MethodResult::Finish => { /* good */ },
-            MethodResult::Throw(s, e) => panic!("clinit failed: {}\n{}", e, s),
-            MethodResult::MachineError(e) => panic!("clinit failed: {}", e),
+    if initialize{
+        if let Some(clinit) = class.static_method(&constants::clinit()){
+            match interpreter::execute(&class, clinit, Vec::new(), StackTrace::new()){
+                MethodResult::FinishWithValue(_) |
+                MethodResult::Finish => { /* good */ },
+                MethodResult::Throw(s, e) => panic!("clinit failed: {}\n{}", e, s),
+                MethodResult::MachineError(e) => panic!("clinit failed: {}", e),
+            }
         }
     }
 
@@ -147,11 +153,11 @@ pub fn classfile_by_name(loader_name: String, class_desc: String) -> Option<Clas
 }
 
 /// Adds a class under the bootstrap classloader.
-pub fn add_bt_class(class: Class){
-    add_class(class, constants::BOOTSTRAP_LOADER_NAME.to_owned());
+pub fn add_bt_class(class: Class, initialize: bool){
+    add_class(class, constants::BOOTSTRAP_LOADER_NAME.to_owned(), initialize);
 }
 
-// Returns the class with the given descriptor loaded by the bootstrap classloader.
+/// Returns the class with the given descriptor loaded by the bootstrap classloader.
 pub fn bt_class_by_desc(class_desc: String) -> Option<ClassRef>{
     return class_by_desc(constants::BOOTSTRAP_LOADER_NAME.to_owned(), class_desc);
 }
@@ -183,9 +189,38 @@ pub fn get_or_create_bt_class(class_desc: String) -> Result<MaybeClass, String>{
 }
 
 // TODO: handle user classloaders
-pub fn ensure_loaded(class: &MaybeClass) -> Result<ClassRef, String>{
+pub fn ensure_loaded(class: &MaybeClass, initialize: bool) -> Result<ClassRef, String>{
     match class{
-        MaybeClass::Class(c) => Ok(c.clone()),
+        MaybeClass::Class(c) => {
+            if initialize{
+                let done_init = {
+                    let read = c.initialized.read();
+                    if let Ok(status) = read{
+                        *status
+                    }else{
+                        return Err("Could not access initialization status of class for loading".to_string())
+                    }
+                };
+                if !done_init{
+                    let write = c.initialized.write();
+                    if let Ok(mut acc) = write{
+                        *acc = true;
+                    }else{
+                        return Err("Could not write initialization status of class after loading".to_string())
+                    }
+                    // run clinit
+                    if let Some(clinit) = c.static_method(&constants::clinit()){
+                        match interpreter::execute(&*c, clinit, Vec::new(), StackTrace::new()){
+                            MethodResult::FinishWithValue(_) |
+                            MethodResult::Finish => { /* good */ },
+                            MethodResult::Throw(s, e) => panic!("clinit failed: {}\n{}", e, s),
+                            MethodResult::MachineError(e) => panic!("clinit failed: {}", e),
+                        }
+                    }
+                }
+            }
+            Ok(c.clone())
+        },
         MaybeClass::Unloaded(desc) => {
             // first check if the class has already been loaded
             if let Some(c) = bt_class_by_desc(desc.clone()){
@@ -193,12 +228,12 @@ pub fn ensure_loaded(class: &MaybeClass) -> Result<ClassRef, String>{
             }
             // otherwise create and save it
             let class = class::load_class(desc_to_name(desc.clone())?)?;
-            add_bt_class(class);
+            add_bt_class(class, initialize);
             return Ok(bt_class_by_desc(desc.clone()).unwrap());
         },
         // TODO: cache array classes?
         MaybeClass::UnloadedArray(comp_desc) => Ok(Arc::new(
-            classes::array_class(&ensure_loaded(&get_or_create_bt_class(comp_desc.clone())?)?)
+            classes::array_class(&ensure_loaded(&get_or_create_bt_class(comp_desc.clone())?, initialize)?)
         )),
     }
 }
