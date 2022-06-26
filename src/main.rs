@@ -3,6 +3,8 @@
 #![feature(if_let_guard)]
 #![feature(let_chains)]
 
+extern crate rand;
+
 use crate::runtime::interpreter::StackTrace;
 
 mod constants;

@@ -1,7 +1,7 @@
 // methods for building java objects (e.g. string constants)
 
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use runtime::{jvalue::{JObject, JObjectData, JValue}, class::ClassRef, classes, heap};
 
 use crate::constants;
@@ -11,10 +11,7 @@ pub fn create_new(of: ClassRef) -> JValue{
     for f in &of.instance_fields{
         fields.insert(f.name.clone(), JValue::default_value_for(&f.type_class.descriptor()));
     }
-    return heap::add_ref(JObject{
-        class: of,
-        data: RwLock::new(JObjectData::Fields(fields))
-    });
+    return heap::add_ref(JObject::new(of, JObjectData::Fields(fields)));
 }
 
 pub fn create_new_array(of: ClassRef, length: usize) -> JValue{
@@ -22,10 +19,7 @@ pub fn create_new_array(of: ClassRef, length: usize) -> JValue{
     for _ in 0..length{
         elements.push(JValue::default_value_for(&of.descriptor));
     }
-    return heap::add_ref(JObject{
-        class: of,
-        data: RwLock::new(JObjectData::Array(length, elements))
-    });
+    return heap::add_ref(JObject::new(of, JObjectData::Array(length, elements)));
 }
 
 /// Create a new Java string object with the given text.
@@ -35,10 +29,7 @@ pub fn synthesize_string(string: &String) -> JObject{
     fields.insert("coder".to_owned(), JValue::Int(1)); // always UTF16
     fields.insert("hash".to_owned(), JValue::Int(0)); // let java figure it out; these are default values
     fields.insert("hashIsZero".to_owned(), JValue::Int(0));
-    return JObject{
-        class: string_class(),
-        data: RwLock::new(JObjectData::Fields(fields))
-    };
+    return JObject::new(string_class(), JObjectData::Fields(fields));
 }
 
 // TODO!: cache class objects for ==
@@ -47,10 +38,7 @@ pub fn synthesize_string(string: &String) -> JObject{
 pub fn synthesize_class(descriptor: &String) -> JObject{
     let mut fields = HashMap::with_capacity(7 + 1);
     fields.insert(constants::CLASS_DESC_FIELD_NAME.to_owned(), heap::add_ref(synthesize_string(descriptor)));
-    return JObject{
-        class: class_class(),
-        data: RwLock::new(JObjectData::Fields(fields))
-    };
+    return JObject::new(class_class(), JObjectData::Fields(fields));
 }
 
 pub fn java_string_to_rust_string(jstring: JValue) -> String{
@@ -111,10 +99,7 @@ fn array_of(objects: Vec<JValue>) -> JValue{
         objects[0].class()
     };
     let class = Arc::new(classes::array_class(&class));
-    return heap::add_ref(JObject{
-        class,
-        data: RwLock::new(JObjectData::Array(objects.len(), objects))
-    });
+    return heap::add_ref(JObject::new(class, JObjectData::Array(objects.len(), objects)));
 }
 
 fn string_class() -> ClassRef{

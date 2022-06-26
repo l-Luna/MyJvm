@@ -1,4 +1,5 @@
 use std::{collections::HashMap, sync::RwLock};
+use rand::Rng;
 use runtime::heap;
 
 use super::{heap::JRef, class::ClassRef};
@@ -18,7 +19,18 @@ pub enum JValue{
 #[derive(Debug)]
 pub struct JObject{
     pub class: ClassRef,
+    pub identity_hash: i32, // just a random number
     pub data: RwLock<JObjectData>
+}
+
+impl JObject{
+    pub fn new(class: ClassRef, data: JObjectData) -> JObject{
+        return JObject{
+            class,
+            identity_hash: rand::thread_rng().gen(),
+            data: RwLock::new(data)
+        };
+    }
 }
 
 #[derive(Debug)]
