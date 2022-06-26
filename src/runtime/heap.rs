@@ -94,7 +94,7 @@ pub fn add_class(class: Class, loader_name: String){
         match interpreter::execute(&class, clinit, Vec::new(), StackTrace::new()){
             MethodResult::FinishWithValue(_) |
             MethodResult::Finish => { /* good */ },
-            MethodResult::Throw(e) => panic!("clinit failed:\n{}", e),
+            MethodResult::Throw(s, e) => panic!("clinit failed: {}\n{}", e, s),
             MethodResult::MachineError(e) => panic!("clinit failed: {}", e),
         }
     }
@@ -105,7 +105,7 @@ pub fn add_class(class: Class, loader_name: String){
         match interpreter::execute(&class, init, Vec::new(), StackTrace::new()){
             MethodResult::FinishWithValue(_) |
             MethodResult::Finish => { /* good */ },
-            MethodResult::Throw(e) => panic!("System.initSystemPhase1 failed: {}", e),
+            MethodResult::Throw(s, e) => panic!("System.initSystemPhase1 failed: {}\n{}", e, s),
             MethodResult::MachineError(e) => panic!("System.initSystemPhase1 failed: {}", e),
         }
     }

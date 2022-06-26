@@ -13,7 +13,7 @@ use super::{jvalue::JObjectData, class::{self, Method, MaybeClass}, heap::{self,
 pub enum MethodResult{
     FinishWithValue(JValue),
     Finish,
-    Throw(StackTrace), // TODO: just use JRef
+    Throw(StackTrace, &'static str), // TODO: just use JRef
     MachineError(&'static str) // TODO: replace with panics after classfile verification works
 }
 
@@ -190,14 +190,14 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                         if let Ok(mut write) = array.data.write(){
                             if let JObjectData::Array(size, values) = &mut *write{
                                 if *array_idx < 0 || *array_idx >= (*size as i32){
-                                    return MethodResult::Throw(update_trace(&trace, *idx, method, owner));
+                                    return MethodResult::Throw(update_trace(&trace, *idx, method, owner), "index out of bounds");
                                 }
                                 let idx = *array_idx as usize;
                                 set_and_pad(values, idx, JValue::Int(to_byte(*value)), JValue::Int(0));
                             }
                         }; //ah. fun.
                     }else{
-                        return MethodResult::Throw(update_trace(&trace, *idx, method, owner));
+                        return MethodResult::Throw(update_trace(&trace, *idx, method, owner), "NPE for BAStore");
                     }
 
                     stack.remove(0); stack.remove(0); stack.remove(0);
@@ -215,14 +215,14 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                         if let Ok(mut write) = array.data.write(){
                             if let JObjectData::Array(size, values) = &mut *write{
                                 if *array_idx < 0 || *array_idx >= (*size as i32){
-                                    return MethodResult::Throw(update_trace(&trace, *idx, method, owner));
+                                    return MethodResult::Throw(update_trace(&trace, *idx, method, owner), "index out of bounds");
                                 }
                                 let idx = *array_idx as usize;
                                 set_and_pad(values, idx, JValue::Int(to_char(*value)), JValue::Int(0));
                             }
                         };
                     }else{
-                        return MethodResult::Throw(update_trace(&trace, *idx, method, owner));
+                        return MethodResult::Throw(update_trace(&trace, *idx, method, owner), "NPE for CAStore");
                     }
 
                     stack.remove(0); stack.remove(0); stack.remove(0);
@@ -240,14 +240,14 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                         if let Ok(mut write) = array.data.write(){
                             if let JObjectData::Array(size, values) = &mut *write{
                                 if *array_idx < 0 || *array_idx >= (*size as i32){
-                                    return MethodResult::Throw(update_trace(&trace, *idx, method, owner));
+                                    return MethodResult::Throw(update_trace(&trace, *idx, method, owner), "index out of bounds");
                                 }
                                 let idx = *array_idx as usize;
                                 set_and_pad(values, idx, JValue::Int(*value), JValue::Int(0));
                             }
                         };
                     }else{
-                        return MethodResult::Throw(update_trace(&trace, *idx, method, owner));
+                        return MethodResult::Throw(update_trace(&trace, *idx, method, owner), "NPE for IAstore");
                     }
 
                     stack.remove(0); stack.remove(0); stack.remove(0);
@@ -265,14 +265,14 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                         if let Ok(mut write) = array.data.write(){
                             if let JObjectData::Array(size, values) = &mut *write{
                                 if *array_idx < 0 || *array_idx >= (*size as i32){
-                                    return MethodResult::Throw(update_trace(&trace, *idx, method, owner));
+                                    return MethodResult::Throw(update_trace(&trace, *idx, method, owner), "index out of bounds");
                                 }
                                 let idx = *array_idx as usize;
                                 set_and_pad(values, idx, JValue::Reference(*value), JValue::Reference(None));
                             }
                         };
                     }else{
-                        return MethodResult::Throw(update_trace(&trace, *idx, method, owner));
+                        return MethodResult::Throw(update_trace(&trace, *idx, method, owner), "NPE for AAStore");
                     }
 
                     stack.remove(0); stack.remove(0); stack.remove(0);
@@ -328,16 +328,14 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                         if let Ok(read) = array.data.read(){
                             if let JObjectData::Array(size, values) = &*read{
                                 if *array_idx < 0 || *array_idx >= (*size as i32){
-                                    println!("baload AIOOBE: {} vs {}, stack: {:?}", *array_idx, *size, &stack);
-                                    return MethodResult::Throw(update_trace(&trace, *idx, method, owner));
+                                    return MethodResult::Throw(update_trace(&trace, *idx, method, owner), "index out of bounds");
                                 }
                                 let idx = *array_idx as usize;
                                 stack.insert(0, values[idx].clone());
                             }
                         };
                     }else{
-                        println!("baload NPE");
-                        return MethodResult::Throw(update_trace(&trace, *idx, method, owner));
+                        return MethodResult::Throw(update_trace(&trace, *idx, method, owner), "NPE for BALoad");
                     }
 
                     stack.remove(1); stack.remove(1); // don't remove what we just loaded
@@ -859,7 +857,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
 
             Instruction::AThrow => {
                 let tr = update_trace(&trace, *idx, method, &owner);
-                return MethodResult::Throw(tr);
+                return MethodResult::Throw(tr, "athrow");
             },
 
             Instruction::GetField(target) => {
@@ -898,7 +896,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                                 return MethodResult::MachineError("Tried to execute getfield on array reference!");
                             };
                         }else{
-                            return MethodResult::Throw(update_trace(&trace, *idx, method, &owner));
+                            return MethodResult::Throw(update_trace(&trace, *idx, method, &owner), "NPE for getfield");
                         }
                     }else{
                         return MethodResult::MachineError("Tried to execute getfield without reference on stack!");
@@ -933,7 +931,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                                     return MethodResult::MachineError("Tried to execute putfield on an array reference!");
                                 }
                             }else if let JValue::Reference(None) = object_ref{
-                                return MethodResult::Throw(update_trace(&trace, *idx, method, owner));
+                                return MethodResult::Throw(update_trace(&trace, *idx, method, owner), "NPE for putfield");
                             }else{
                                 return MethodResult::MachineError("Tried to execute putfield with non-reference on stack!")
                             }
@@ -960,11 +958,11 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     match result{
                         MethodResult::FinishWithValue(v) => stack.insert(0, v),
                         MethodResult::Finish => {},
-                        MethodResult::Throw(e) => return MethodResult::Throw(e),
+                        MethodResult::Throw(s, e) => return MethodResult::Throw(s, e),
                         MethodResult::MachineError(e) => return MethodResult::MachineError(e),
                     }
                 }else if let JValue::Reference(None) = receiver{
-                    return MethodResult::Throw(update_trace(&trace, *idx, method, owner));
+                    return MethodResult::Throw(update_trace(&trace, *idx, method, owner), "NPE for invokevirtual");
                 }else{
                     return MethodResult::MachineError("Tried to execute invokevirtual without object on stack");
                 }
@@ -983,7 +981,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     match result{
                         MethodResult::FinishWithValue(v) => stack.insert(0, v),
                         MethodResult::Finish => {},
-                        MethodResult::Throw(e) => return MethodResult::Throw(e),
+                        MethodResult::Throw(s, e) => return MethodResult::Throw(s, e),
                         MethodResult::MachineError(e) => return MethodResult::MachineError(e),
                     }
                 }else{
@@ -1009,11 +1007,11 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     match result{
                         MethodResult::FinishWithValue(v) => stack.insert(0, v),
                         MethodResult::Finish => {},
-                        MethodResult::Throw(e) => return MethodResult::Throw(e),
+                        MethodResult::Throw(s, e) => return MethodResult::Throw(s, e),
                         MethodResult::MachineError(e) => return MethodResult::MachineError(e),
                     }
                 }else if let JValue::Reference(None) = receiver{
-                    return MethodResult::Throw(update_trace(&trace, *idx, method, owner));
+                    return MethodResult::Throw(update_trace(&trace, *idx, method, owner), "NPE for invokespecial");
                 }else{
                     return MethodResult::MachineError("Tried to execute invokespecial without object on stack");
                 }
@@ -1033,7 +1031,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                             return MethodResult::MachineError("Could not read object data for arraylength");
                         };
                     }else{
-                        return MethodResult::Throw(update_trace(&trace, *idx, method, owner));
+                        return MethodResult::Throw(update_trace(&trace, *idx, method, owner), "NPE for arraylength");
                     }
 
                     stack.remove(1); // 0 is the length we just pushed
@@ -1044,13 +1042,14 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
 
             Instruction::InstanceOf(t) => {
                 if let JValue::Reference(f) = stack.remove(0){
-                    if value > 0{
-                        let target = (*idx as isize) + (*offset as isize);
-                        if target < 0{
-                            panic!("Bad goto offset");
-                        }
-                        i = bytecode_idx_to_instr_idx(target as usize, code);
-                        was_jump = true;
+                    if let Some(r) = f{
+                        let obj = r.deref();
+                        let class = &obj.class;
+                        // TODO: array instanceof?
+                        let assignable = class.assignable_to(&format!("L{};", t));
+                        stack.insert(0, JValue::Int(if assignable { 1 } else { 0 }));
+                    }else{
+                        stack.insert(0, JValue::Int(0));
                     }
                 }else{
                     return MethodResult::MachineError("Tried to execute instanceof without reference on top of stack");
@@ -1072,7 +1071,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 if let JValue::Int(l) = stack.remove(0){
                     if l < 0{
                         // TODO: synthesize NegativeArraySizeException
-                        return MethodResult::Throw(update_trace(&trace, *idx, method, owner));
+                        return MethodResult::Throw(update_trace(&trace, *idx, method, owner), "negativearraysize for newarray");
                     }
                     let l = l as usize;
                     stack.insert(0, objects::create_new_array(class, l));
@@ -1084,8 +1083,8 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     if let JValue::Reference(r) = v{
                         if let Some(r) = r{
                             let class = &r.deref().class;
-                            if !class.assignable_to(&to){
-                                return MethodResult::Throw(update_trace(&trace, *idx, method, owner));
+                            if !class.assignable_to(&format!("L{};", to)){
+                                return MethodResult::Throw(update_trace(&trace, *idx, method, owner), "non-assignable for checkcast");
                             }
                         }
                     }else{
