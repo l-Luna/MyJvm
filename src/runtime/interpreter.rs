@@ -72,7 +72,12 @@ pub fn execute(owner: &Class, method: &Method, args: Vec<JValue>, trace: StackTr
     println!("Executing {} in {}", &method.name, &owner.name);
     match &method.code{
         class::MethodImpl::Bytecode(bytecode) => interpret(owner, method, args, bytecode, trace),
-        class::MethodImpl::Native => native_impls::run_builtin_native(&owner.name, &format!("{}{}", method.name, method.descriptor()), args),
+        class::MethodImpl::Native => {
+            match native_impls::run_builtin_native(&owner.name, &format!("{}{}", method.name, method.descriptor()), args){
+                MethodResult::Throw(_, err) => MethodResult::Throw(update_trace(&trace, 0, method, owner), err),
+                u => u
+            }
+        },
         class::MethodImpl::Abstract => todo!(),
     }
 }
@@ -405,6 +410,15 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     return MethodResult::MachineError("Tried to execute irem without two ints on top of stack");
                 }
             },
+            Instruction::INeg => {
+                if let Some(JValue::Int(l)) = stack.get(0){
+                    let val = -*l;
+                    stack.remove(0);
+                    stack.insert(0, JValue::Int(val));
+                }else{
+                    return MethodResult::MachineError("Tried to execute ineg without int on top of stack");
+                }
+            },
             Instruction::IShl => {
                 if let Some(JValue::Int(value2)) = stack.get(0)
                 && let Some(JValue::Int(value1)) = stack.get(1){
@@ -454,6 +468,16 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     stack.insert(0, JValue::Int(val));
                 }else{
                     return MethodResult::MachineError("Tried to execute ior without two ints on top of stack");
+                }
+            },
+            Instruction::IXor => {
+                if let Some(JValue::Int(l)) = stack.get(0)
+                && let Some(JValue::Int(r)) = stack.get(1){
+                    let val = *l ^ *r;
+                    stack.remove(0); stack.remove(0);
+                    stack.insert(0, JValue::Int(val));
+                }else{
+                    return MethodResult::MachineError("Tried to execute ixor without two ints on top of stack");
                 }
             },
 
