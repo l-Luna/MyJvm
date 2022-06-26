@@ -838,7 +838,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                         was_jump = true;
                     }
                 }else{
-                    return MethodResult::MachineError("Tried to execute ifnonnull without reference on top of stack");
+                    return MethodResult::MachineError("Tried to execute ifnull without reference on top of stack");
                 }
             },
             Instruction::IfNonnull(offset) => {
