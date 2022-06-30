@@ -93,7 +93,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
     locals.resize(code.max_locals as usize, None);
     while i < code.bytecode.len(){
         let mut was_jump = false;
-        let (idx, instr) = code.bytecode.get(i).expect("in range");
+        let (idx, instr) = code.bytecode.get(i).unwrap();
         match instr {
             Instruction::AConstNull => {
                 stack.insert(0, JValue::Reference(None));

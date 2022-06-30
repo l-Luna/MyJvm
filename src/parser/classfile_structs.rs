@@ -264,5 +264,5 @@ pub enum Instruction{
 
     MonitorEnter, MonitorExit,
 
-    Wide /*???*/,
+    TODO
 }

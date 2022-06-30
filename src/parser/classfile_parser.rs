@@ -838,6 +838,7 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
             constants::OP_INVOKE_INTERFACE => {
                 if let Some(it) = next_short(bytecode)
                 && let ConstantEntry::MemberRef(m) = &const_pool[it as usize - 1]{
+                    let _ = next_short(bytecode); // count, 0, both ignored
                     result.push((idx, Instruction::InvokeInterface(m.clone())));
                 }else{ return Err("Missing short operand of invokeinterface or invalid const pool index".to_owned()); }
             },
@@ -884,6 +885,8 @@ fn parse_bytecode(bytecode: &mut Vec<u8>, const_pool: &Vec<ConstantEntry>) -> Re
 
             constants::OP_MONITOR_ENTER => result.push((idx, Instruction::MonitorEnter)),
             constants::OP_MONITOR_EXIT => result.push((idx, Instruction::MonitorExit)),
+
+            constants::OP_WIDE | constants::OP_MULTI_ANEWARRAY => result.push((idx, Instruction::TODO)),
 
             other => {
                 //return Err("");
