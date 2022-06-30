@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use parser::classfile_structs::{Code, Instruction};
 use runtime::jvalue::JValue;
 use runtime::{native_impls, objects};
@@ -87,7 +88,7 @@ pub fn execute(owner: &Class, method: &Method, args: Vec<JValue>, trace: StackTr
 
 pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code, trace: StackTrace) -> MethodResult{
     let mut i: usize = 0;
-    let mut stack: Vec<JValue> = Vec::with_capacity(code.max_stack as usize);
+    let mut stack: VecDeque<JValue> = VecDeque::with_capacity(code.max_stack as usize);
     let mut locals: Vec<Option<JValue>> = Vec::with_capacity(code.max_locals as usize);
     locals.append(&mut args.iter().cloned().map(Some).collect());
     locals.resize(code.max_locals as usize, None);
@@ -96,44 +97,44 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
         let (idx, instr) = code.bytecode.get(i).unwrap();
         match instr {
             Instruction::AConstNull => {
-                stack.insert(0, JValue::Reference(None));
+                stack.push_front(JValue::Reference(None));
             },
 
             Instruction::IConst(it) => {
-                stack.insert(0, JValue::Int(*it as i32));
+                stack.push_front(JValue::Int(*it as i32));
             },
             Instruction::LConst(it) => {
-                stack.insert(0, JValue::Long(*it as i64));
+                stack.push_front(JValue::Long(*it as i64));
                 stack.insert(1, JValue::Second);
             },
             Instruction::FConst(it) => {
-                stack.insert(0, JValue::Float(*it as f32));
+                stack.push_front(JValue::Float(*it as f32));
             },
             Instruction::DConst(it) => {
-                stack.insert(0, JValue::Double(*it as f64));
+                stack.push_front(JValue::Double(*it as f64));
                 stack.insert(1, JValue::Second);
             },
 
             Instruction::Ldc(c) => match c{
                 ConstantEntry::Integer(i) => {
-                    stack.insert(0, JValue::Int(*i));
+                    stack.push_front(JValue::Int(*i));
                 },
                 ConstantEntry::Long(l) => {
-                    stack.insert(0, JValue::Long(*l));
+                    stack.push_front(JValue::Long(*l));
                     stack.insert(1, JValue::Second);
                 },
                 ConstantEntry::Float(f) => {
-                    stack.insert(0, JValue::Float(*f));
+                    stack.push_front(JValue::Float(*f));
                 },
                 ConstantEntry::Double(d) => {
-                    stack.insert(0, JValue::Double(*d));
+                    stack.push_front(JValue::Double(*d));
                     stack.insert(1, JValue::Second);
                 },
                 ConstantEntry::StringConst(s) => {
-                    stack.insert(0, heap::add_ref(objects::synthesize_string(&s)));
+                    stack.push_front(heap::add_ref(objects::synthesize_string(&s)));
                 },
                 ConstantEntry::Class(s) => {
-                    stack.insert(0, heap::add_ref(objects::synthesize_class(&s)));
+                    stack.push_front(heap::add_ref(objects::synthesize_class(&s)));
                 },
                 _ => { panic!("Possibly unhandled or invalid constant: {:?}", c) }
             }
@@ -289,14 +290,14 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
 
             Instruction::ILoad(at) => {
                 if let Some(Some(JValue::Int(value))) = locals.get(*at as usize){
-                    stack.insert(0, JValue::Int(*value));
+                    stack.push_front(JValue::Int(*value));
                 }else{
                     return MethodResult::MachineError("Tried to execute iload without int at local variable index");
                 }
             },
             Instruction::LLoad(at) => {
                 if let Some(Some(JValue::Long(value))) = locals.get(*at as usize){
-                    stack.insert(0, JValue::Long(*value));
+                    stack.push_front(JValue::Long(*value));
                     stack.insert(1, JValue::Second);
                 }else{
                     return MethodResult::MachineError("Tried to execute lload without long at local variable index");
@@ -304,14 +305,14 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
             },
             Instruction::FLoad(at) => {
                 if let Some(Some(JValue::Float(value))) = locals.get(*at as usize){
-                    stack.insert(0, JValue::Float(*value));
+                    stack.push_front(JValue::Float(*value));
                 }else{
                     return MethodResult::MachineError("Tried to execute fload without int at local variable index");
                 }
             },
             Instruction::DLoad(at) => {
                 if let Some(Some(JValue::Double(value))) = locals.get(*at as usize){
-                    stack.insert(0, JValue::Double(*value));
+                    stack.push_front(JValue::Double(*value));
                     stack.insert(1, JValue::Second);
                 }else{
                     return MethodResult::MachineError("Tried to execute dload without long at local variable index");
@@ -319,7 +320,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
             },
             Instruction::ALoad(at) => {
                 if let Some(Some(JValue::Reference(value))) = locals.get(*at as usize){
-                    stack.insert(0, JValue::Reference(*value));
+                    stack.push_front(JValue::Reference(*value));
                 }else{
                     return MethodResult::MachineError("Tried to execute aload without reference at local variable index");
                 }
@@ -338,7 +339,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                                     return MethodResult::Throw(update_trace(&trace, *idx, method, owner), "index out of bounds");
                                 }
                                 let idx = *array_idx as usize;
-                                stack.insert(0, values[idx].clone());
+                                stack.push_front(values[idx].clone());
                             }
                         };
                     }else{
@@ -356,7 +357,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
             },
             Instruction::Dup => {
                 if let Some(value) = stack.get(0){
-                    stack.insert(0, value.clone());
+                    stack.push_front(value.clone());
                 }else{
                     return MethodResult::MachineError("Tried to execute dup with empty stack");
                 }
@@ -368,7 +369,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 && let Some(JValue::Int(r)) = stack.get(1){
                     let (val, _) = i32::overflowing_add(*l, *r);
                     stack.remove(0); stack.remove(0);
-                    stack.insert(0, JValue::Int(val));
+                    stack.push_front(JValue::Int(val));
                 }else{
                     return MethodResult::MachineError("Tried to execute iadd without two ints on top of stack");
                 }
@@ -378,7 +379,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 && let Some(JValue::Int(r)) = stack.get(1){
                     let (val, _) = i32::overflowing_add(-*l, *r); // value2 - value1
                     stack.remove(0); stack.remove(0);
-                    stack.insert(0, JValue::Int(val));
+                    stack.push_front(JValue::Int(val));
                 }else{
                     return MethodResult::MachineError("Tried to execute isub without two ints on top of stack");
                 }
@@ -388,7 +389,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 && let Some(JValue::Int(r)) = stack.get(1){
                     let val = *l * *r;
                     stack.remove(0); stack.remove(0);
-                    stack.insert(0, JValue::Int(val));
+                    stack.push_front(JValue::Int(val));
                 }else{
                     return MethodResult::MachineError("Tried to execute imul without two ints on top of stack");
                 }
@@ -398,7 +399,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 && let Some(JValue::Int(r)) = stack.get(1){
                     let val = *l / *r;
                     stack.remove(0); stack.remove(0);
-                    stack.insert(0, JValue::Int(val));
+                    stack.push_front(JValue::Int(val));
                 }else{
                     return MethodResult::MachineError("Tried to execute idiv without two ints on top of stack");
                 }
@@ -408,7 +409,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 && let Some(JValue::Int(value1)) = stack.get(1){
                     let val = value1 - (value1 / value2) * value2; // JVMS
                     stack.remove(0); stack.remove(0);
-                    stack.insert(0, JValue::Int(val));
+                    stack.push_front(JValue::Int(val));
                 }else{
                     return MethodResult::MachineError("Tried to execute irem without two ints on top of stack");
                 }
@@ -417,7 +418,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 if let Some(JValue::Int(l)) = stack.get(0){
                     let val = -*l;
                     stack.remove(0);
-                    stack.insert(0, JValue::Int(val));
+                    stack.push_front(JValue::Int(val));
                 }else{
                     return MethodResult::MachineError("Tried to execute ineg without int on top of stack");
                 }
@@ -427,7 +428,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 && let Some(JValue::Int(value1)) = stack.get(1){
                     let val = *value1 << (*value2 & 0b00011111);
                     stack.remove(0); stack.remove(0);
-                    stack.insert(0, JValue::Int(val));
+                    stack.push_front(JValue::Int(val));
                 }else{
                     return MethodResult::MachineError("Tried to execute ishl without two ints on top of stack");
                 }
@@ -437,7 +438,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 && let Some(JValue::Int(value1)) = stack.get(1){
                     let val = *value1 >> (*value2 & 0b00011111);
                     stack.remove(0); stack.remove(0);
-                    stack.insert(0, JValue::Int(val));
+                    stack.push_front(JValue::Int(val));
                 }else{
                     dbg!(&stack);
                     return MethodResult::MachineError("Tried to execute ishr without two ints on top of stack");
@@ -448,7 +449,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 && let Some(JValue::Int(value1)) = stack.get(1){
                     let val = ((*value1 as u32) >> ((*value2 & 0b00011111) as u32)) as i32;
                     stack.remove(0); stack.remove(0);
-                    stack.insert(0, JValue::Int(val));
+                    stack.push_front(JValue::Int(val));
                 }else{
                     return MethodResult::MachineError("Tried to execute iushr without two ints on top of stack");
                 }
@@ -458,7 +459,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 && let Some(JValue::Int(r)) = stack.get(1){
                     let val = *l & *r;
                     stack.remove(0); stack.remove(0);
-                    stack.insert(0, JValue::Int(val));
+                    stack.push_front(JValue::Int(val));
                 }else{
                     return MethodResult::MachineError("Tried to execute iand without two ints on top of stack");
                 }
@@ -468,7 +469,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 && let Some(JValue::Int(r)) = stack.get(1){
                     let val = *l | *r;
                     stack.remove(0); stack.remove(0);
-                    stack.insert(0, JValue::Int(val));
+                    stack.push_front(JValue::Int(val));
                 }else{
                     return MethodResult::MachineError("Tried to execute ior without two ints on top of stack");
                 }
@@ -478,7 +479,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 && let Some(JValue::Int(r)) = stack.get(1){
                     let val = *l ^ *r;
                     stack.remove(0); stack.remove(0);
-                    stack.insert(0, JValue::Int(val));
+                    stack.push_front(JValue::Int(val));
                 }else{
                     return MethodResult::MachineError("Tried to execute ixor without two ints on top of stack");
                 }
@@ -489,7 +490,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 && let Some(JValue::Long(r)) = stack.get(2){
                     let val = *l + *r;
                     stack.remove(0); stack.remove(0); stack.remove(0); stack.remove(0);
-                    stack.insert(0, JValue::Long(val));
+                    stack.push_front(JValue::Long(val));
                     stack.insert(1, JValue::Second);
                 }else{
                     return MethodResult::MachineError("Tried to execute ladd without two longs on top of stack");
@@ -500,7 +501,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 && let Some(JValue::Long(value1)) = stack.get(2){
                     let val = *value1 - *value2;
                     stack.remove(0); stack.remove(0); stack.remove(0); stack.remove(0);
-                    stack.insert(0, JValue::Long(val));
+                    stack.push_front(JValue::Long(val));
                     stack.insert(1, JValue::Second);
                 }else{
                     return MethodResult::MachineError("Tried to execute lsub without two longs on top of stack");
@@ -511,7 +512,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 && let Some(JValue::Long(value1)) = stack.get(2){
                     let (val, _) = i64::overflowing_mul(*value1, *value2);
                     stack.remove(0); stack.remove(0); stack.remove(0); stack.remove(0);
-                    stack.insert(0, JValue::Long(val));
+                    stack.push_front(JValue::Long(val));
                     stack.insert(1, JValue::Second);
                 }else{
                     return MethodResult::MachineError("Tried to execute lmul without two longs on top of stack");
@@ -522,7 +523,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 && let Some(JValue::Long(value1)) = stack.get(1){
                     let val = *value1 << (*value2 & 0b00111111);
                     stack.remove(0); stack.remove(0); stack.remove(0);
-                    stack.insert(0, JValue::Long(val));
+                    stack.push_front(JValue::Long(val));
                     stack.insert(1, JValue::Second);
                 }else{
                     return MethodResult::MachineError("Tried to execute lshl without int+long on top of stack");
@@ -533,7 +534,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 && let Some(JValue::Long(value1)) = stack.get(1){
                     let val = *value1 >> (*value2 & 0b00111111);
                     stack.remove(0); stack.remove(0); stack.remove(0);
-                    stack.insert(0, JValue::Long(val));
+                    stack.push_front(JValue::Long(val));
                     stack.insert(1, JValue::Second);
                 }else{
                     return MethodResult::MachineError("Tried to execute lshl without int+long on top of stack");
@@ -544,7 +545,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 && let Some(JValue::Long(value1)) = stack.get(2){
                     let val = *value1 & *value2;
                     stack.remove(0); stack.remove(0); stack.remove(0); stack.remove(0);
-                    stack.insert(0, JValue::Long(val));
+                    stack.push_front(JValue::Long(val));
                     stack.insert(1, JValue::Second);
                 }else{
                     return MethodResult::MachineError("Tried to execute land without two longs on top of stack");
@@ -556,7 +557,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 && let Some(JValue::Float(r)) = stack.get(1){
                     let val = *l + *r;
                     stack.remove(0); stack.remove(0);
-                    stack.insert(0, JValue::Float(val));
+                    stack.push_front(JValue::Float(val));
                 }else{
                     return MethodResult::MachineError("Tried to execute fadd without two floats on top of stack");
                 }
@@ -566,7 +567,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 && let Some(JValue::Float(r)) = stack.get(1){
                     let val = *l / *r;
                     stack.remove(0); stack.remove(0);
-                    stack.insert(0, JValue::Float(val));
+                    stack.push_front(JValue::Float(val));
                 }else{
                     return MethodResult::MachineError("Tried to execute fdiv without two floats on top of stack");
                 }
@@ -577,7 +578,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 && let Some(JValue::Double(r)) = stack.get(2){
                     let val = *l + *r;
                     stack.remove(0); stack.remove(0); stack.remove(0); stack.remove(0);
-                    stack.insert(0, JValue::Double(val));
+                    stack.push_front(JValue::Double(val));
                     stack.insert(1, JValue::Second);
                 }else{
                     return MethodResult::MachineError("Tried to execute dadd without two doubles on top of stack");
@@ -608,7 +609,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                         else if val1 > val2{ 1 }
                         else{ -1 };
                     stack.remove(0); stack.remove(0); stack.remove(0); stack.remove(0);
-                    stack.insert(0, JValue::Int(val));
+                    stack.push_front(JValue::Int(val));
                 }else{
                     return MethodResult::MachineError("Tried to execute lcmp without two longs on top of stack");
                 }
@@ -624,14 +625,14 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                             else{ -1 }
                         };
                     stack.remove(0); stack.remove(0);
-                    stack.insert(0, JValue::Int(val));
+                    stack.push_front(JValue::Int(val));
                 }else{
                     return MethodResult::MachineError("Tried to execute fcmp* without two floats on top of stack");
                 }
             },
             
             Instruction::IfEq(offset) => {
-                if let JValue::Int(value) = stack.remove(0){
+                if let Some(JValue::Int(value)) = stack.remove(0){
                     if value == 0{
                         let target = (*idx as isize) + (*offset as isize);
                         if target < 0{
@@ -645,7 +646,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 }
             },
             Instruction::IfNe(offset) => {
-                if let JValue::Int(value) = stack.remove(0){
+                if let Some(JValue::Int(value)) = stack.remove(0){
                     if value != 0{
                         let target = (*idx as isize) + (*offset as isize);
                         if target < 0{
@@ -659,7 +660,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 }
             },
             Instruction::IfLt(offset) => {
-                if let JValue::Int(value) = stack.remove(0){
+                if let Some(JValue::Int(value)) = stack.remove(0){
                     if value < 0{
                         let target = (*idx as isize) + (*offset as isize);
                         if target < 0{
@@ -673,7 +674,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 }
             },
             Instruction::IfGe(offset) => {
-                if let JValue::Int(value) = stack.remove(0){
+                if let Some(JValue::Int(value)) = stack.remove(0){
                     if value >= 0{
                         let target = (*idx as isize) + (*offset as isize);
                         if target < 0{
@@ -687,7 +688,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 }
             },
             Instruction::IfGt(offset) => {
-                if let JValue::Int(value) = stack.remove(0){
+                if let Some(JValue::Int(value)) = stack.remove(0){
                     if value > 0{
                         let target = (*idx as isize) + (*offset as isize);
                         if target < 0{
@@ -701,7 +702,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 }
             },
             Instruction::IfLe(offset) => {
-                if let JValue::Int(value) = stack.remove(0){
+                if let Some(JValue::Int(value)) = stack.remove(0){
                     if value <= 0{
                         let target = (*idx as isize) + (*offset as isize);
                         if target < 0{
@@ -716,8 +717,8 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
             },
 
             Instruction::IfICmpEq(offset) => {
-                if let JValue::Int(value2) = stack.remove(0)
-                && let JValue::Int(value1) = stack.remove(0){
+                if let Some(JValue::Int(value2)) = stack.remove(0)
+                && let Some(JValue::Int(value1)) = stack.remove(0){
                     if value1 == value2{
                         let target = (*idx as isize) + (*offset as isize);
                         if target < 0{
@@ -731,8 +732,8 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 }
             },
             Instruction::IfICmpNe(offset) => {
-                if let JValue::Int(value2) = stack.remove(0)
-                && let JValue::Int(value1) = stack.remove(0){
+                if let Some(JValue::Int(value2)) = stack.remove(0)
+                && let Some(JValue::Int(value1)) = stack.remove(0){
                     if value1 != value2{
                         let target = (*idx as isize) + (*offset as isize);
                         if target < 0{
@@ -746,8 +747,8 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 }
             },
             Instruction::IfICmpLt(offset) => {
-                if let JValue::Int(value2) = stack.remove(0)
-                && let JValue::Int(value1) = stack.remove(0){
+                if let Some(JValue::Int(value2)) = stack.remove(0)
+                && let Some(JValue::Int(value1)) = stack.remove(0){
                     if value1 < value2{
                         let target = (*idx as isize) + (*offset as isize);
                         if target < 0{
@@ -761,8 +762,8 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 }
             },
             Instruction::IfICmpGe(offset) => {
-                if let JValue::Int(value2) = stack.remove(0)
-                && let JValue::Int(value1) = stack.remove(0){
+                if let Some(JValue::Int(value2)) = stack.remove(0)
+                && let Some(JValue::Int(value1)) = stack.remove(0){
                     if value1 >= value2{
                         let target = (*idx as isize) + (*offset as isize);
                         if target < 0{
@@ -776,8 +777,8 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 }
             },
             Instruction::IfICmpGt(offset) => {
-                if let JValue::Int(value2) = stack.remove(0)
-                && let JValue::Int(value1) = stack.remove(0){
+                if let Some(JValue::Int(value2)) = stack.remove(0)
+                && let Some(JValue::Int(value1)) = stack.remove(0){
                     if value1 > value2{
                         let target = (*idx as isize) + (*offset as isize);
                         if target < 0{
@@ -791,8 +792,8 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 }
             },
             Instruction::IfICmpLe(offset) => {
-                if let JValue::Int(value2) = stack.remove(0)
-                && let JValue::Int(value1) = stack.remove(0){
+                if let Some(JValue::Int(value2)) = stack.remove(0)
+                && let Some(JValue::Int(value1)) = stack.remove(0){
                     if value1 <= value2{
                         let target = (*idx as isize) + (*offset as isize);
                         if target < 0{
@@ -807,8 +808,8 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
             },
 
             Instruction::IfACmpEq(offset) => {
-                if let JValue::Reference(value2) = stack.remove(0)
-                && let JValue::Reference(value1) = stack.remove(0){
+                if let Some(JValue::Reference(value2)) = stack.remove(0)
+                && let Some(JValue::Reference(value1)) = stack.remove(0){
                     if value1 == value2{
                         let target = (*idx as isize) + (*offset as isize);
                         if target < 0{
@@ -822,8 +823,8 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 }
             },
             Instruction::IfACmpNe(offset) => {
-                if let JValue::Reference(value2) = stack.remove(0)
-                && let JValue::Reference(value1) = stack.remove(0){
+                if let Some(JValue::Reference(value2)) = stack.remove(0)
+                && let Some(JValue::Reference(value1)) = stack.remove(0){
                     if value1 != value2{
                         let target = (*idx as isize) + (*offset as isize);
                         if target < 0{
@@ -838,7 +839,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
             },
 
             Instruction::IfNull(offset) => {
-                if let JValue::Reference(r) = stack.remove(0){
+                if let Some(JValue::Reference(r)) = stack.remove(0){
                     if let None = r{
                         let target = (*idx as isize) + (*offset as isize);
                         if target < 0{
@@ -852,7 +853,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 }
             },
             Instruction::IfNonnull(offset) => {
-                if let JValue::Reference(r) = stack.remove(0){
+                if let Some(JValue::Reference(r)) = stack.remove(0){
                     if let Some(_) = r{
                         let target = (*idx as isize) + (*offset as isize);
                         if target < 0{
@@ -867,70 +868,70 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
             },
 
             Instruction::I2L => {
-                if let JValue::Int(i) = stack.remove(0){
+                if let Some(JValue::Int(i)) = stack.remove(0){
                     let val = i as i64;
-                    stack.insert(0, JValue::Long(val));
+                    stack.push_front(JValue::Long(val));
                     stack.insert(1, JValue::Second);
                 }else{
                     return MethodResult::MachineError("Tried to execute i2l without int on top of stack");
                 }
             },
             Instruction::I2F => {
-                if let JValue::Int(i) = stack.remove(0){
+                if let Some(JValue::Int(i)) = stack.remove(0){
                     let val = i as f32;
-                    stack.insert(0, JValue::Float(val));
+                    stack.push_front(JValue::Float(val));
                 }else{
                     return MethodResult::MachineError("Tried to execute i2f without int on top of stack");
                 }
             },
             Instruction::L2I => {
-                if let JValue::Long(l) = stack.remove(0){
+                if let Some(JValue::Long(l)) = stack.remove(0){
                     let val = l as i32;
                     stack.remove(0);
-                    stack.insert(0, JValue::Int(val));
+                    stack.push_front(JValue::Int(val));
                 }else{
                     return MethodResult::MachineError("Tried to execute l2i without long on top of stack");
                 }
             },
             Instruction::L2F => {
-                if let JValue::Long(l) = stack.remove(0){
+                if let Some(JValue::Long(l)) = stack.remove(0){
                     let val = l as f32;
                     stack.remove(0);
-                    stack.insert(0, JValue::Float(val));
+                    stack.push_front(JValue::Float(val));
                 }else{
                     return MethodResult::MachineError("Tried to execute l2f without long on top of stack");
                 }
             },
             Instruction::F2I => {
-                if let JValue::Float(l) = stack.remove(0){
+                if let Some(JValue::Float(l)) = stack.remove(0){
                     let val = l as i32;
-                    stack.insert(0, JValue::Int(val));
+                    stack.push_front(JValue::Int(val));
                 }else{
                     return MethodResult::MachineError("Tried to execute f2i without float on top of stack");
                 }
             },
             Instruction::F2D => {
-                if let JValue::Float(l) = stack.remove(0){
+                if let Some(JValue::Float(l)) = stack.remove(0){
                     let val = l as f64;
-                    stack.insert(0, JValue::Double(val));
+                    stack.push_front(JValue::Double(val));
                     stack.insert(1, JValue::Second);
                 }else{
                     return MethodResult::MachineError("Tried to execute f2d without float on top of stack");
                 }
             },
             Instruction::D2L => {
-                if let JValue::Double(l) = stack.remove(0){
+                if let Some(JValue::Double(l)) = stack.remove(0){
                     let val = l as i64;
                     stack.remove(0);
-                    stack.insert(0, JValue::Long(val));
+                    stack.push_front(JValue::Long(val));
                     stack.insert(1, JValue::Second);
                 }else{
                     return MethodResult::MachineError("Tried to execute d2l without float on top of stack");
                 }
             },
             Instruction::I2C => {
-                if let JValue::Int(i) = stack.remove(0){
-                    stack.insert(0, JValue::Int(to_char(i)));
+                if let Some(JValue::Int(i)) = stack.remove(0){
+                    stack.push_front(JValue::Int(to_char(i)));
                 }else{
                     return MethodResult::MachineError("Tried to execute i2c without int on top of stack");
                 }
@@ -988,19 +989,19 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     let f = f.read().unwrap();
                     if f.0.name == target.name_and_type.name{
                         let j_value = f.1.clone();
-                        stack.insert(0, j_value);
+                        stack.push_front(j_value);
                         was_static = true;
                     }
                 }
                 if !was_static{
-                    if let JValue::Reference(r) = stack.remove(0){
+                    if let Some(JValue::Reference(r)) = stack.remove(0){
                         if let Some(r) = r{
                             let obj = r.deref();
                             if let JObjectData::Fields(f) = &*obj.data.read().unwrap(){
                                 let mut pushed = false;
                                 for (name, value) in f{
                                     if &target.name_and_type.name == name{
-                                        stack.insert(0, value.clone());
+                                        stack.push_front(value.clone());
                                         pushed = true;
                                         break;
                                     }
@@ -1008,7 +1009,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                                 if !pushed{
                                     // field declared in class but not present in actual fields
                                     // can happen if object is badly made (like `Class`es currently)
-                                    stack.insert(0, JValue::default_value_for(&target.name_and_type.descriptor));
+                                    stack.push_front(JValue::default_value_for(&target.name_and_type.descriptor));
                                 }
                             }else{
                                 return MethodResult::MachineError("Tried to execute getfield on array reference!");
@@ -1027,7 +1028,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     .ensure_initialized()
                     .expect("Could not load field owner");
                 let mut was_static = false;
-                let value = stack.remove(0);
+                let value = stack.remove(0).unwrap();
                 for f in &field_owner.static_fields{
                     let mut f = f.write().unwrap();
                     if f.0.name == target.name_and_type.name{
@@ -1040,7 +1041,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     let object_ref = stack.remove(0);
                     for f in &field_owner.instance_fields{
                         if f.name == target.name_and_type.name{
-                            if let JValue::Reference(Some(r)) = object_ref{
+                            if let Some(JValue::Reference(Some(r))) = object_ref{
                                 let object = r.deref();
                                 let mut data = object.data.write().unwrap();
                                 if let JObjectData::Fields(fields) = &mut *data{
@@ -1048,7 +1049,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                                 }else{
                                     return MethodResult::MachineError("Tried to execute putfield on an array reference!");
                                 }
-                            }else if let JValue::Reference(None) = object_ref{
+                            }else if let Some(JValue::Reference(None)) = object_ref{
                                 return MethodResult::Throw(update_trace(&trace, *idx, method, owner), "NPE for putfield");
                             }else{
                                 return MethodResult::MachineError("Tried to execute putfield with non-reference on stack!")
@@ -1062,9 +1063,9 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 let params = resolve_signature(&target);
                 let mut args = Vec::with_capacity(params.len() + 1);
                 for _ in 0..params.len(){
-                    args.insert(0, stack.remove(0));
+                    args.insert(0, stack.remove(0).unwrap());
                 }
-                let receiver = stack.remove(0);
+                let receiver = stack.remove(0).unwrap();
                 args.insert(0, receiver.clone());
 
                 if let JValue::Reference(Some(r)) = receiver{
@@ -1075,7 +1076,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     // TODO: exception handling
                     match result{
                         MethodResult::FinishWithValue(v) => {
-                            stack.insert(0, v);
+                            stack.push_front(v);
                             match v{
                                 JValue::Long(_) | JValue::Double(_) => stack.insert(1, JValue::Second),
                                 _ => {}
@@ -1095,9 +1096,9 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 let params = resolve_signature(&target);
                 let mut args = Vec::with_capacity(params.len() + 1);
                 for _ in 0..params.len(){
-                    args.insert(0, stack.remove(0));
+                    args.insert(0, stack.remove(0).unwrap());
                 }
-                let receiver = stack.remove(0);
+                let receiver = stack.remove(0).unwrap();
                 args.insert(0, receiver.clone());
 
                 if let JValue::Reference(Some(r)) = receiver{
@@ -1108,7 +1109,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     // TODO: exception handling
                     match result{
                         MethodResult::FinishWithValue(v) => {
-                            stack.insert(0, v);
+                            stack.push_front(v);
                             match v{
                                 JValue::Long(_) | JValue::Double(_) => stack.insert(1, JValue::Second),
                                 _ => {}
@@ -1132,12 +1133,12 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     let num_params = target.parameters.len();
                     let mut args = Vec::with_capacity(num_params);
                     for _ in 0..num_params{
-                        args.insert(0, stack.remove(0));
+                        args.insert(0, stack.remove(0).unwrap());
                     }
                     let result = execute(&*class, &target, args, update_trace(&trace, *idx, method, owner));
                     match result{
                         MethodResult::FinishWithValue(v) => {
-                            stack.insert(0, v);
+                            stack.push_front(v);
                             match v{
                                 JValue::Long(_) | JValue::Double(_) => stack.insert(1, JValue::Second),
                                 _ => {}
@@ -1156,9 +1157,9 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 let params = resolve_signature(&target);
                 let mut args = Vec::with_capacity(params.len() + 1);
                 for _ in 0..params.len(){
-                    args.insert(0, stack.remove(0));
+                    args.insert(0, stack.remove(0).unwrap());
                 }
-                let receiver = stack.remove(0);
+                let receiver = stack.remove(0).unwrap();
                 args.insert(0, receiver.clone());
 
                 if let JValue::Reference(Some(r)) = receiver{
@@ -1169,7 +1170,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     // TODO: exception handling
                     match result{
                         MethodResult::FinishWithValue(v) => {
-                            stack.insert(0, v);
+                            stack.push_front(v);
                             match v{
                                 JValue::Long(_) | JValue::Double(_) => stack.insert(1, JValue::Second),
                                 _ => {}
@@ -1192,7 +1193,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                         let array = array_ref.deref();
                         if let Ok(read) = array.data.read(){
                             if let JObjectData::Array(size, _) = &*read{
-                                stack.insert(0, JValue::Int(*size as i32));
+                                stack.push_front(JValue::Int(*size as i32));
                             }else{
                                 return MethodResult::MachineError("Tried to execute arraylength on non-array reference!");
                             }
@@ -1210,15 +1211,15 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
             },
 
             Instruction::InstanceOf(t) => {
-                if let JValue::Reference(f) = stack.remove(0){
+                if let Some(JValue::Reference(f)) = stack.remove(0){
                     if let Some(r) = f{
                         let obj = r.deref();
                         let class = &obj.class;
                         // TODO: array instanceof?
                         let assignable = class.assignable_to(&format!("L{};", t));
-                        stack.insert(0, JValue::Int(if assignable { 1 } else { 0 }));
+                        stack.push_front(JValue::Int(if assignable { 1 } else { 0 }));
                     }else{
-                        stack.insert(0, JValue::Int(0));
+                        stack.push_front(JValue::Int(0));
                     }
                 }else{
                     return MethodResult::MachineError("Tried to execute instanceof without reference on top of stack");
@@ -1230,7 +1231,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     .expect("Could not parse class for new instruction!")
                     .ensure_loaded()
                     .expect("Could not link class for new instruction!");
-                stack.insert(0, objects::create_new(class));
+                stack.push_front(objects::create_new(class));
             },
             Instruction::NewArray(class_name) => {
                 // TODO: check everywhere else too for linking VS initializing
@@ -1238,13 +1239,13 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     .expect("Could not parse class for [a]newarray instruction!")
                     .ensure_loaded()
                     .expect("Could not link class for [a]newarray instruction!");
-                if let JValue::Int(l) = stack.remove(0){
+                if let Some(JValue::Int(l)) = stack.remove(0){
                     if l < 0{
                         // TODO: synthesize NegativeArraySizeException
                         return MethodResult::Throw(update_trace(&trace, *idx, method, owner), "negativearraysize for newarray");
                     }
                     let l = l as usize;
-                    stack.insert(0, objects::create_new_array(class, l));
+                    stack.push_front(objects::create_new_array(class, l));
                 }
             },
 
