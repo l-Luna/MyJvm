@@ -551,6 +551,16 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 }
             },
 
+            Instruction::FAdd => {
+                if let Some(JValue::Float(l)) = stack.get(0)
+                && let Some(JValue::Float(r)) = stack.get(1){
+                    let val = *l + *r;
+                    stack.remove(0); stack.remove(0);
+                    stack.insert(0, JValue::Float(val));
+                }else{
+                    return MethodResult::MachineError("Tried to execute fadd without two floats on top of stack");
+                }
+            },
             Instruction::FDiv => {
                 if let Some(JValue::Float(l)) = stack.get(0)
                 && let Some(JValue::Float(r)) = stack.get(1){
@@ -865,6 +875,14 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     return MethodResult::MachineError("Tried to execute i2l without int on top of stack");
                 }
             },
+            Instruction::I2F => {
+                if let JValue::Int(i) = stack.remove(0){
+                    let val = i as f32;
+                    stack.insert(0, JValue::Float(val));
+                }else{
+                    return MethodResult::MachineError("Tried to execute i2f without int on top of stack");
+                }
+            },
             Instruction::L2I => {
                 if let JValue::Long(l) = stack.remove(0){
                     let val = l as i32;
@@ -881,6 +899,14 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     stack.insert(0, JValue::Float(val));
                 }else{
                     return MethodResult::MachineError("Tried to execute l2f without long on top of stack");
+                }
+            },
+            Instruction::F2I => {
+                if let JValue::Float(l) = stack.remove(0){
+                    let val = l as i32;
+                    stack.insert(0, JValue::Int(val));
+                }else{
+                    return MethodResult::MachineError("Tried to execute f2i without float on top of stack");
                 }
             },
             Instruction::F2D => {
