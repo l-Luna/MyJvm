@@ -540,6 +540,17 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     return MethodResult::MachineError("Tried to execute lshl without int+long on top of stack");
                 }
             },
+            Instruction::LUshr => {
+                if let Some(JValue::Int(value2)) = stack.get(0)
+                && let Some(JValue::Long(value1)) = stack.get(1){
+                    let val = ((*value1 as u64) >> ((*value2 & 0b00111111) as u64)) as i64;
+                    stack.remove(0); stack.remove(0); stack.remove(0);
+                    stack.push_front(JValue::Long(val));
+                    stack.insert(1, JValue::Second);
+                }else{
+                    return MethodResult::MachineError("Tried to execute lshl without int+long on top of stack");
+                }
+            },
             Instruction::LAnd => {
                 if let Some(JValue::Long(value2)) = stack.get(0)
                 && let Some(JValue::Long(value1)) = stack.get(2){
