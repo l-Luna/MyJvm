@@ -20,7 +20,19 @@ fn register_natives_v(_: Vec<JValue>) -> MethodResult{
 fn get_primitive_class_str_class(params: Vec<JValue>) -> MethodResult{
     let desc = params[0];
     let desc = objects::java_string_to_rust_string(desc);
-    return MethodResult::FinishWithValue(heap::add_ref(objects::synthesize_class(&desc)));
+    let desc = match desc.as_str(){
+        "boolean" => "Z",
+        "byte" => "B",
+        "short" => "S",
+        "char" => "C",
+        "int" => "I",
+        "long" => "J",
+        "float" => "F",
+        "double" => "D",
+        "void" => "V",
+        other => panic!("Tried to create primitive class for {}!", other)
+    };
+    return MethodResult::FinishWithValue(heap::add_ref(objects::synthesize_class(&desc.to_string())));
 }
 
 fn const_1_i(_: Vec<JValue>) -> MethodResult{
