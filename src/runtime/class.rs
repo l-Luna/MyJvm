@@ -218,6 +218,13 @@ pub fn link_class(classfile: Classfile, loader: Arc<dyn ClassLoader>) -> Result<
             .ensure_loaded()
             .expect("Could not link superclass"));
     }
+    let mut interfaces = Vec::with_capacity(classfile.interfaces.len());
+    for interface in &classfile.interfaces {
+        interfaces.push(heap::get_or_create_class(format!("L{};", interface), &loader)
+            .expect("Could not find or parse super-class classfile")
+            .ensure_loaded()
+            .expect("Could not link superclass"));
+    }
 
     return Ok(Class{
         name: binary_to_fq_name(classfile.name.clone()),
@@ -228,7 +235,7 @@ pub fn link_class(classfile: Classfile, loader: Arc<dyn ClassLoader>) -> Result<
         static_fields,
         methods: all_methods,
         super_class,
-        interfaces: vec![],
+        interfaces,
     });
 }
 

@@ -362,6 +362,13 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     return MethodResult::MachineError("Tried to execute dup with empty stack");
                 }
             },
+            Instruction::DupX1 => {
+                if let Some(value) = stack.get(0){
+                    stack.insert(2, value.clone());
+                }else{
+                    return MethodResult::MachineError("Tried to execute dup_x2 with empty stack");
+                }
+            },
 
             // TODO: merge into one match arm (instr?) and match on the instruction inside
             Instruction::IAdd => {
