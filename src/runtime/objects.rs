@@ -57,7 +57,7 @@ pub fn java_string_to_rust_string(jstring: JValue) -> String{
                     let bytes: Vec<u16> = bytes
                         .chunks_exact(2)
                         .into_iter()
-                        .map(|a| u16::from_ne_bytes([a[0], a[1]]))
+                        .map(|a| u16::from_be_bytes([a[0], a[1]]))
                         .collect();
                     return String::from_utf16(&bytes).unwrap();
                 };
