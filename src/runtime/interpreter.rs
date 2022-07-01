@@ -90,8 +90,17 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
     let mut i: usize = 0;
     let mut stack: VecDeque<JValue> = VecDeque::with_capacity(code.max_stack as usize);
     let mut locals: Vec<Option<JValue>> = Vec::with_capacity(code.max_locals as usize);
-    locals.append(&mut args.iter().cloned().map(Some).collect());
+
+    for arg in args{
+        locals.push(Some(arg.clone()));
+        if let JValue::Long(_) = arg{
+            locals.push(Some(JValue::Second));
+        }else if let JValue::Double(_) = arg{
+            locals.push(Some(JValue::Second));
+        }
+    }
     locals.resize(code.max_locals as usize, None);
+
     while i < code.bytecode.len(){
         let mut was_jump = false;
         let (idx, instr) = code.bytecode.get(i).unwrap();
@@ -569,6 +578,17 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     return MethodResult::MachineError("Tried to execute land without two longs on top of stack");
                 }
             },
+            Instruction::LOr => {
+                if let Some(JValue::Long(value2)) = stack.get(0)
+                && let Some(JValue::Long(value1)) = stack.get(2){
+                    let val = *value1 | *value2;
+                    stack.remove(0); stack.remove(0); stack.remove(0); stack.remove(0);
+                    stack.push_front(JValue::Long(val));
+                    stack.insert(1, JValue::Second);
+                }else{
+                    return MethodResult::MachineError("Tried to execute land without two longs on top of stack");
+                }
+            },
 
             Instruction::FAdd => {
                 if let Some(JValue::Float(l)) = stack.get(0)
@@ -972,6 +992,13 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     stack.push_front(JValue::Int(to_char(i)));
                 }else{
                     return MethodResult::MachineError("Tried to execute i2c without int on top of stack");
+                }
+            },
+            Instruction::I2B => {
+                if let Some(JValue::Int(i)) = stack.remove(0){
+                    stack.push_front(JValue::Int(to_byte(i)));
+                }else{
+                    return MethodResult::MachineError("Tried to execute i2b without int on top of stack");
                 }
             },
 
