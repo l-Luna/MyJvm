@@ -95,7 +95,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
     while i < code.bytecode.len(){
         let mut was_jump = false;
         let (idx, instr) = code.bytecode.get(i).unwrap();
-        match instr {
+        match instr{
             Instruction::AConstNull => {
                 stack.push_front(JValue::Reference(None));
             },
@@ -1001,6 +1001,11 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     if f.0.name == target.name_and_type.name{
                         let j_value = f.1.clone();
                         stack.push_front(j_value);
+                        if let JValue::Long(_) = j_value{
+                            stack.insert(1, JValue::Second);
+                        }else if let JValue::Double(_) = j_value{
+                            stack.insert(1, JValue::Second);
+                        }
                         was_static = true;
                     }
                 }
@@ -1013,6 +1018,11 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                                 for (name, value) in f{
                                     if &target.name_and_type.name == name{
                                         stack.push_front(value.clone());
+                                        if let JValue::Long(_) = value{
+                                            stack.insert(1, JValue::Second);
+                                        }else if let JValue::Double(_) = value{
+                                            stack.insert(1, JValue::Second);
+                                        }
                                         pushed = true;
                                         break;
                                     }
