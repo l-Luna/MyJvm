@@ -22,6 +22,10 @@ pub fn create_new_array(of: ClassRef, length: usize) -> JValue{
     return heap::add_ref(JObject::new(of, JObjectData::Array(length, elements)));
 }
 
+pub fn create_new_array_of(of: ClassRef, values: Vec<JValue>) -> JValue{
+    return heap::add_ref(JObject::new(of, JObjectData::Array(values.len(), values)));
+}
+
 /// Create a new Java string object with the given text.
 pub fn synthesize_string(string: &String) -> JObject{
     let mut fields = HashMap::with_capacity(4);
@@ -102,14 +106,14 @@ fn array_of(objects: Vec<JValue>) -> JValue{
     return heap::add_ref(JObject::new(class, JObjectData::Array(objects.len(), objects)));
 }
 
-fn string_class() -> ClassRef{
+pub fn string_class() -> ClassRef{
     return heap::get_or_create_bt_class("Ljava/lang/String;".to_string())
         .expect("Could not parse java.lang.String!")
         .ensure_initialized()
         .expect("Could not link java.lang.String!");
 }
 
-fn class_class() -> ClassRef{
+pub fn class_class() -> ClassRef{
     return heap::get_or_create_bt_class("Ljava/lang/Class;".to_string())
         .expect("Could not parse java.lang.Class!")
         .ensure_initialized()

@@ -394,7 +394,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
             Instruction::IMul => {
                 if let Some(JValue::Int(l)) = stack.get(0)
                 && let Some(JValue::Int(r)) = stack.get(1){
-                    let val = *l * *r;
+                    let (val, _) = i32::overflowing_mul(*l, *r);
                     stack.remove(0); stack.remove(0);
                     stack.push_front(JValue::Int(val));
                 }else{
@@ -402,9 +402,9 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 }
             },
             Instruction::IDiv => {
-                if let Some(JValue::Int(l)) = stack.get(0)
-                && let Some(JValue::Int(r)) = stack.get(1){
-                    let val = *l / *r;
+                if let Some(JValue::Int(value2)) = stack.get(0)
+                && let Some(JValue::Int(value1)) = stack.get(1){
+                    let val = *value1 / *value2;
                     stack.remove(0); stack.remove(0);
                     stack.push_front(JValue::Int(val));
                 }else{

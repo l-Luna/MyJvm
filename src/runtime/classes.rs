@@ -60,8 +60,7 @@ impl ClassLoader for BootstrapLoader{
     }
 }
 
-pub fn setup_java_base(){
-    // TODO: also handle user classes
+pub fn find_java_home() -> Option<String>{
     let mut java_home: Option<String> = None;
     for op in std::env::args() {
         if op.starts_with("-java_home="){
@@ -71,7 +70,11 @@ pub fn setup_java_base(){
     if java_home == None{
         java_home = Some(std::env::var("JAVA_HOME").expect("The \"JAVA_HOME\" variable must be set, or \"-java_home=...\" must be given as argument."));
     }
-    let java_home = java_home.unwrap();
+    return java_home;
+}
+
+pub fn setup_java_base(){
+    let java_home = find_java_home().unwrap();
 
     // yes this isn't strictly correct I know
     let java_base = format!("{}/jmods/java.base.jmod", java_home);
