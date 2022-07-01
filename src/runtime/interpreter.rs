@@ -580,10 +580,30 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     return MethodResult::MachineError("Tried to execute fadd without two floats on top of stack");
                 }
             },
-            Instruction::FDiv => {
+            Instruction::FMul => {
                 if let Some(JValue::Float(l)) = stack.get(0)
                 && let Some(JValue::Float(r)) = stack.get(1){
-                    let val = *l / *r;
+                    let val = *l * *r;
+                    stack.remove(0); stack.remove(0);
+                    stack.push_front(JValue::Float(val));
+                }else{
+                    return MethodResult::MachineError("Tried to execute fmul without two floats on top of stack");
+                }
+            },
+            Instruction::FSub => {
+                if let Some(JValue::Float(value2)) = stack.get(0)
+                && let Some(JValue::Float(value1)) = stack.get(1){
+                    let val = *value1 - *value2;
+                    stack.remove(0); stack.remove(0);
+                    stack.push_front(JValue::Float(val));
+                }else{
+                    return MethodResult::MachineError("Tried to execute fdiv without two floats on top of stack");
+                }
+            },
+            Instruction::FDiv => {
+                if let Some(JValue::Float(value2)) = stack.get(0)
+                && let Some(JValue::Float(value1)) = stack.get(1){
+                    let val = *value1 / *value2;
                     stack.remove(0); stack.remove(0);
                     stack.push_front(JValue::Float(val));
                 }else{
