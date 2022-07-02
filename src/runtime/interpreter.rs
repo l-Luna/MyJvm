@@ -91,7 +91,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
     let mut stack: VecDeque<JValue> = VecDeque::with_capacity(code.max_stack as usize);
     let mut locals: Vec<Option<JValue>> = Vec::with_capacity(code.max_locals as usize);
 
-    for arg in args{
+    for arg in &args{
         locals.push(Some(arg.clone()));
         if let JValue::Long(_) = arg{
             locals.push(Some(JValue::Second));
@@ -331,6 +331,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 if let Some(Some(JValue::Reference(value))) = locals.get(*at as usize){
                     stack.push_front(JValue::Reference(*value));
                 }else{
+                    println!("locals: {:?}, in {}.{}, args: {:?}", &locals, &owner.name, &method.name, &args);
                     return MethodResult::MachineError("Tried to execute aload without reference at local variable index");
                 }
             },
@@ -1137,8 +1138,13 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
             Instruction::InvokeVirtual(target) => {
                 let params = resolve_signature(&target);
                 let mut args = Vec::with_capacity(params.len() + 1);
-                for _ in 0..params.len(){
-                    args.insert(0, stack.remove(0).unwrap());
+                let mut i = 0;
+                while i < params.len(){
+                    let val = stack.remove(0).unwrap();
+                    if val != JValue::Second{
+                        args.insert(0, val);
+                        i += 1;
+                    }
                 }
                 let receiver = stack.remove(0).unwrap();
                 args.insert(0, receiver.clone());
@@ -1170,8 +1176,13 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
             Instruction::InvokeInterface(target) => {
                 let params = resolve_signature(&target);
                 let mut args = Vec::with_capacity(params.len() + 1);
-                for _ in 0..params.len(){
-                    args.insert(0, stack.remove(0).unwrap());
+                let mut i = 0;
+                while i < params.len(){
+                    let val = stack.remove(0).unwrap();
+                    if val != JValue::Second{
+                        args.insert(0, val);
+                        i += 1;
+                    }
                 }
                 let receiver = stack.remove(0).unwrap();
                 args.insert(0, receiver.clone());
@@ -1207,8 +1218,13 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     // TODO: dedup code
                     let num_params = target.parameters.len();
                     let mut args = Vec::with_capacity(num_params);
-                    for _ in 0..num_params{
-                        args.insert(0, stack.remove(0).unwrap());
+                    let mut i = 0;
+                    while i < num_params{
+                        let val = stack.remove(0).unwrap();
+                        if val != JValue::Second{
+                            args.insert(0, val);
+                            i += 1;
+                        }
                     }
                     let result = execute(&*class, &target, args, update_trace(&trace, *idx, method, owner));
                     match result{
@@ -1231,8 +1247,13 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
             Instruction::InvokeSpecial(target) => {
                 let params = resolve_signature(&target);
                 let mut args = Vec::with_capacity(params.len() + 1);
-                for _ in 0..params.len(){
-                    args.insert(0, stack.remove(0).unwrap());
+                let mut i = 0;
+                while i < params.len(){
+                    let val = stack.remove(0).unwrap();
+                    if val != JValue::Second{
+                        args.insert(0, val);
+                        i += 1;
+                    }
                 }
                 let receiver = stack.remove(0).unwrap();
                 args.insert(0, receiver.clone());
