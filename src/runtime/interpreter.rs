@@ -660,6 +660,43 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 i = bytecode_idx_to_instr_idx(target as usize, code);
                 was_jump = true;
             },
+
+            Instruction::LookupSwitch(default, offsets) => {
+                let val = stack.pop_front();
+                if let Some(JValue::Int(selector)) = val{
+                    let mut target_offset = default;
+                    for (value, offset) in offsets{
+                        if *value == selector{
+                            target_offset = offset;
+                        }
+                    }
+                    let target = (*idx as isize) + (*target_offset as isize);
+                    if target < 0{
+                        panic!("Bad goto offset");
+                    }
+                    i = bytecode_idx_to_instr_idx(target as usize, code);
+                    was_jump = true;
+                }else{
+                    return MethodResult::MachineError("Tried to execute lookupswitch without int on top of stack!");
+                }
+            },
+            Instruction::TableSwitch(default, lo, hi, jumps) => {
+                let val = stack.pop_front();
+                if let Some(JValue::Int(selector)) = val{
+                    let mut target_offset = *default;
+                    if selector >= *lo && selector <= *hi{
+                        target_offset = jumps[(selector - *lo) as usize];
+                    }
+                    let target = (*idx as isize) + (target_offset as isize);
+                    if target < 0{
+                        panic!("Bad goto offset");
+                    }
+                    i = bytecode_idx_to_instr_idx(target as usize, code);
+                    was_jump = true;
+                }else{
+                    return MethodResult::MachineError("Tried to execute tableswitch without int on top of stack!");
+                }
+            }
             
             Instruction::LCmp => {
                 if let Some(JValue::Long(val2)) = stack.get(0)
