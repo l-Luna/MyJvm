@@ -143,8 +143,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     stack.push_front(heap::add_ref(objects::synthesize_string(&s)));
                 },
                 ConstantEntry::Class(s) => {
-                    // TODO: these are internal names, not descriptors!
-                    stack.push_front(heap::add_ref(objects::synthesize_class(&s)));
+                    stack.push_front(heap::add_ref(objects::synthesize_class(&internal_name_to_desc(s))));
                 },
                 _ => { panic!("Possibly unhandled or invalid constant: {:?}", c) }
             }
@@ -1290,12 +1289,8 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 if let Some(JValue::Reference(f)) = stack.remove(0){
                     if let Some(r) = f{
                         let obj = r.deref();
-                        let class = &obj.class;
-                        let mut to = to.to_string();
-                        if !to.contains("["){
-                            to = format!("L{};", to);
-                        }
-                        let assignable = class.assignable_to(&to);
+                        let to = internal_name_to_desc(to).to_string();
+                        let assignable = obj.assignable_to(&to);
                         stack.push_front(JValue::Int(if assignable { 1 } else { 0 }));
                     }else{
                         stack.push_front(JValue::Int(0));
@@ -1332,14 +1327,10 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 if let Some(v) = stack.get(0){
                     if let JValue::Reference(r) = v{
                         if let Some(r) = r{
-                            let class = &r.deref().class;
-                            let mut to = to.to_string();
-                            // TODO: an array is distinguished by having Array data!
-                            if !to.contains("["){
-                                to = format!("L{};", to);
-                            }
-                            if !class.assignable_to(&to){
-                                println!("cannot assign {} to {}!", &class.descriptor, &to);
+                            let obj = r.deref();
+                            let to = internal_name_to_desc(to);
+                            if !obj.assignable_to(&to){
+                                println!("cannot assign {} to {}!", &obj.class.descriptor, &to);
                                 return MethodResult::Throw(update_trace(&trace, *idx, method, owner), "non-assignable for checkcast");
                             }
                         }
@@ -1425,4 +1416,11 @@ fn to_char(v: i32) -> i32{
 
 fn to_byte(v: i32) -> i32{
     return v.clamp(i8::MIN as i32, i8::MAX as i32);
+}
+
+fn internal_name_to_desc(iname: &str) -> String{
+    if iname.contains("["){
+        return iname.to_owned();
+    }
+    return format!("L{};", iname);
 }

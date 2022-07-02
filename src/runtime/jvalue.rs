@@ -31,6 +31,33 @@ impl JObject{
             data: RwLock::new(data)
         };
     }
+
+    /// Returns the descriptor of the type of this object.
+    pub fn descriptor(&self) -> String{
+        return match &*self.data.read().unwrap(){
+            JObjectData::Array(_, _) => format!("[{}", &self.class.descriptor),
+            JObjectData::Fields(_) => self.class.descriptor.clone()
+        };
+    }
+
+    /// Returns whether this object is assignable to the target descriptor, accounting for array objects.
+    pub fn assignable_to(&self, desc: &str) -> bool{
+        return JObject::assignable_to_rec(self.descriptor(), desc.to_owned());
+    }
+
+    fn assignable_to_rec(obj_desc: String, to: String) -> bool{
+        return if obj_desc.starts_with("[") && to.starts_with("["){
+            JObject::assignable_to_rec(obj_desc[1..].to_owned(), to[1..].to_owned())
+        }else if !obj_desc.starts_with("[") && !to.starts_with("["){
+            let from_class = heap::get_or_create_bt_class(obj_desc)
+                .unwrap()
+                .ensure_loaded()
+                .unwrap();
+            from_class.assignable_to(&to)
+        }else{
+            false
+        }
+    }
 }
 
 #[derive(Debug)]
