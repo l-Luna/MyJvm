@@ -40,7 +40,7 @@ fn const_1_i(_: Vec<JValue>) -> MethodResult{
 }
 
 fn is_array_z(p: Vec<JValue>) -> MethodResult{
-    return if let Some(desc) = get_desc(p){
+    return if let Some(desc) = get_desc_first(&p){
         let value = desc.starts_with("[");
         MethodResult::FinishWithValue(JValue::Int(if value { 1 } else { 0 }))
     }else{
@@ -49,7 +49,7 @@ fn is_array_z(p: Vec<JValue>) -> MethodResult{
 }
 
 fn is_primitive_z(p: Vec<JValue>) -> MethodResult{
-    return if let Some(desc) = get_desc(p){
+    return if let Some(desc) = get_desc_first(&p){
         let value = desc.len() == 1;
         MethodResult::FinishWithValue(JValue::Int(if value { 1 } else { 0 }))
     }else{
@@ -59,7 +59,7 @@ fn is_primitive_z(p: Vec<JValue>) -> MethodResult{
 
 // impl
 
-fn get_desc(p: Vec<JValue>) -> Option<String>{
+pub fn get_desc_first(p: &Vec<JValue>) -> Option<String>{
     let this = p[0];
     if let JValue::Reference(Some(this)) = this{
         let obj = this.deref();
