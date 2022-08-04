@@ -29,16 +29,14 @@ impl JRef {
 
 // Heaps must be mutable so that they can be setup at runtime
 // RwLocks are used for threadsafe addition to heaps and classloading
-static mut HEAP_ACTIVE: Option<RwLock<Vec<Arc<JObject>>>> = None;
-static mut HEAP_INACTIVE: Option<RwLock<Vec<Arc<JObject>>>> = None;
+static HEAP_ACTIVE: RwLock<Vec<Arc<JObject>>> = RwLock::new(Vec::new());
+static HEAP_INACTIVE: RwLock<Vec<Arc<JObject>>> = RwLock::new(Vec::new());
 // Map of classloader name -> associated classes
 static mut CREATED_CLASSES: Option<RwLock<HashMap<String, Vec<Classfile>>>> = None;
 static mut LOADED_CLASSES: Option<RwLock<HashMap<String, Vec<ClassRef>>>> = None;
 
 pub fn setup(){
     unsafe{
-        HEAP_ACTIVE = Some(RwLock::new(Vec::new()));
-        HEAP_INACTIVE = Some(RwLock::new(Vec::new()));
         CREATED_CLASSES = Some(RwLock::new(HashMap::new()));
         LOADED_CLASSES = Some(RwLock::new(HashMap::new()));
     }
@@ -52,20 +50,14 @@ pub fn setup(){
 // Object handling
 
 pub fn add(obj: JObject) -> JRef{
-    unsafe{
-        let rw = HEAP_ACTIVE.as_ref().unwrap();
-        let true_heap = &mut *rw.write().unwrap();
-        true_heap.push(Arc::new(obj));
-        return JRef{ heap_idx: true_heap.len() - 1 };
-    }
+    let true_heap = &mut *(HEAP_ACTIVE.write().unwrap());
+    true_heap.push(Arc::new(obj));
+    return JRef{ heap_idx: true_heap.len() - 1 };
 }
 
 pub fn get(refs: &JRef) -> Arc<JObject>{
-    unsafe{
-        let rw = HEAP_ACTIVE.as_ref().unwrap();
-        let true_heap = rw.read().unwrap();
-        return true_heap[refs.heap_idx].clone();
-    }
+    let true_heap = &HEAP_ACTIVE.read().unwrap();
+    return true_heap[refs.heap_idx].clone();
 }
 
 pub fn add_ref(obj: JObject) -> JValue{

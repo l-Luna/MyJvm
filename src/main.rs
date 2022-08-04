@@ -1,7 +1,6 @@
 #![feature(absolute_path)]
 #![feature(let_else)]
 #![feature(if_let_guard)]
-#![feature(let_chains)]
 
 extern crate rand;
 
