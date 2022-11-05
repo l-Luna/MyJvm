@@ -60,7 +60,10 @@ fn is_primitive_z(p: Vec<JValue>) -> MethodResult{
 // impl
 
 pub fn get_desc_first(p: &Vec<JValue>) -> Option<String>{
-    let this = p[0];
+    return get_class_desc(&p[0]);
+}
+
+pub fn get_class_desc(this: &JValue) -> Option<String>{
     if let JValue::Reference(Some(this)) = this{
         let obj = this.deref();
         let data = obj.data.read();

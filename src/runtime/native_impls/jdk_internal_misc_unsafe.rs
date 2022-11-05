@@ -38,8 +38,9 @@ fn address_size_i(_: Vec<JValue>) -> MethodResult{
 
 // offsets are just field indexes in our impl
 fn object_field_offset_by_name_j(params: Vec<JValue>) -> MethodResult{
-    let class_desc = java_lang_class::get_desc_first(&params);
-    let name = objects::java_string_to_rust_string(params[1]);
+    // Unsafe, Class<?>, String
+    let class_desc = java_lang_class::get_class_desc(&params[1]);
+    let name = objects::java_string_to_rust_string(params[2]);
     let class = heap::get_or_create_bt_class(class_desc.unwrap())
         .unwrap()
         .ensure_loaded()
