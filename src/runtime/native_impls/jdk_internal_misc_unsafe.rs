@@ -1,4 +1,3 @@
-use std::convert::TryInto;
 use runtime::native_impls::java_lang_class;
 use runtime::{heap, objects};
 use runtime::jvalue::JObjectData;
@@ -15,6 +14,7 @@ pub fn builtin_unsafe_native(name_and_desc: &str) -> fn(Vec<JValue>) -> MethodRe
         "unalignedAccess0()Z" => const_1_i,
         "objectFieldOffset1(Ljava/lang/Class;Ljava/lang/String;)J" => object_field_offset_by_name_j,
         "compareAndSetInt(Ljava/lang/Object;JII)Z" => compare_and_set_int_z,
+        "compareAndSetLong(Ljava/lang/Object;JJJ)Z" => compare_and_set_long_z,
         "getReferenceVolatile(Ljava/lang/Object;J)Ljava/lang/Object;" => get_reference_volatile_obj,
         "compareAndSetReference(Ljava/lang/Object;JLjava/lang/Object;Ljava/lang/Object;)Z" => compare_and_set_reference_z,
         _ => panic!("Unknown jdk.internal.misc.Unsafe native: {}", name_and_desc)
@@ -63,6 +63,7 @@ fn object_field_offset_by_name_j(params: Vec<JValue>) -> MethodResult{
 }
 
 // TODO: extract similarities
+// leave until after JObject rework?
 fn compare_and_set_int_z(params: Vec<JValue>) -> MethodResult{
     // Unsafe, Object to modify, long offset, int expected, int value to set
     let JValue::Long(idx) = params[2] else { return MethodResult::MachineError("expected long for compareAndSetInt") };
@@ -122,6 +123,35 @@ fn compare_and_set_reference_z(params: Vec<JValue>) -> MethodResult{
                 if let Some(JValue::Reference(v)) = values.get(idx as usize){
                     if *v == expected{
                         values[idx as usize] = JValue::Reference(to_set);
+                        return MethodResult::FinishWithValue(JValue::Int(1)); // true
+                    }
+                }
+            }
+        }
+    }
+    return MethodResult::FinishWithValue(JValue::Int(0)); // false
+}
+
+fn compare_and_set_long_z(params: Vec<JValue>) -> MethodResult{
+    // Unsafe, Object to modify, long offset, long expected, long value to set
+    let JValue::Long(idx) = params[2] else { return MethodResult::MachineError("expected long for compareAndSetLong") };
+    let JValue::Long(expected) = params[3] else { return MethodResult::MachineError("expected long for compareAndSetLong") };
+    let JValue::Long(to_set) = params[4] else { return MethodResult::MachineError("expected long for compareAndSetLong") };
+    if let JValue::Reference(Some(r)) = params[1]{
+        if let JObjectData::Fields(fields) = &mut *r.deref().data.write().unwrap(){
+            let mut i = 0;
+            let mut name: Option<String> = None;
+            for field in &r.deref().class.instance_fields{
+                if i == idx{
+                    name = Some(field.name.clone());
+                    break;
+                }
+                i += 1;
+            }
+            if let Some(f) = name{
+                if let JValue::Long(v) = fields[&f]{
+                    if v == expected{
+                        fields.insert(f, JValue::Long(to_set));
                         return MethodResult::FinishWithValue(JValue::Int(1)); // true
                     }
                 }

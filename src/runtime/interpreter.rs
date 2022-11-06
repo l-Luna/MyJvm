@@ -376,7 +376,25 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 if let Some(value) = stack.get(0){
                     stack.insert(2, value.clone());
                 }else{
-                    return MethodResult::MachineError("Tried to execute dup_x2 with empty stack");
+                    return MethodResult::MachineError("Tried to execute dup_x1 with empty stack");
+                }
+            },
+            Instruction::DupX2 => {
+                if let Some(value) = stack.get(0){
+                    stack.insert(3, value.clone());
+                }else{
+                    return MethodResult::MachineError("Tried to execute dup_x1 with empty stack");
+                }
+            },
+            Instruction::Dup2 => {
+                if let Some(value1) = stack.get(0)
+                && let Some(value2) = stack.get(1){
+                    let v1 = value1.clone(); // let the immutable borrow end before mutably borrowing
+                    let v2 = value2.clone();
+                    stack.push_front(v2.clone());
+                    stack.push_front(v1.clone());
+                }else{
+                    return MethodResult::MachineError("Tried to execute dup2 with insufficient stack");
                 }
             },
 
