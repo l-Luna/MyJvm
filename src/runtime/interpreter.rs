@@ -1183,6 +1183,10 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                         i += 1;
                     }
                 }
+                // TODO: doesn't seem right? rework & simplify different invokes
+                if let Some(JValue::Second) = stack.get(0){
+                    stack.remove(0); // param 0 was a double/long
+                }
                 let receiver = stack.remove(0).unwrap();
                 args.insert(0, receiver.clone());
 
