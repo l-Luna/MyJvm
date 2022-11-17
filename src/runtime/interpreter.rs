@@ -1421,6 +1421,10 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     return MethodResult::MachineError("Tried to execute checkcast with nothing on stack!");
                 }
             },
+            Instruction::MonitorEnter | Instruction::MonitorExit => {
+                // TODO: synchronization
+                stack.pop_front();
+            }
 
             other => {
                 panic!("Unhandled instruction: {:?}", other);
