@@ -165,20 +165,25 @@ fn get_reference_volatile_obj(params: Vec<JValue>) -> MethodResult{
     // Unsafe, Object to access, long offset
     let JValue::Long(idx) = params[2] else { return MethodResult::MachineError("expected long for getReferenceVolatile") };
     if let JValue::Reference(Some(r)) = params[1]{
-        if let JObjectData::Fields(fields) = &mut *r.deref().data.write().unwrap(){
-            let mut i = 0;
-            let mut name: Option<String> = None;
-            for field in &r.deref().class.instance_fields{
-                if i == idx{
-                    name = Some(field.name.clone());
-                    break;
+        match &mut *r.deref().data.write().unwrap(){
+            JObjectData::Fields(fields) => {
+                let mut i = 0;
+                let mut name: Option<String> = None;
+                for field in &r.deref().class.instance_fields{
+                    if i == idx{
+                        name = Some(field.name.clone());
+                        break;
+                    }
+                    i += 1;
                 }
-                i += 1;
+                if let Some(f) = name{
+                    if let JValue::Reference(r) = fields[&f]{
+                        return MethodResult::FinishWithValue(JValue::Reference(r));
+                    }
+                }
             }
-            if let Some(f) = name{
-                if let JValue::Reference(r) = fields[&f]{
-                    return MethodResult::FinishWithValue(JValue::Reference(r));
-                }
+            JObjectData::Array(_, values) => {
+                return MethodResult::FinishWithValue(values[idx as usize]);
             }
         }
     }
