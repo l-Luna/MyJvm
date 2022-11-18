@@ -1106,18 +1106,23 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     .ensure_initialized()
                     .expect("Could not load field owner");
                 let mut was_static = false;
-                for f in &owner.static_fields{
-                    let f = f.read().unwrap();
-                    if f.0.name == target.name_and_type.name{
-                        let j_value = f.1.clone();
-                        stack.push_front(j_value);
-                        if let JValue::Long(_) = j_value{
-                            stack.insert(1, JValue::Second);
-                        }else if let JValue::Double(_) = j_value{
-                            stack.insert(1, JValue::Second);
+                let mut cur = &owner;
+                // also get statics from superclasses, because ByteBuffer
+                while let Some(sc) = &cur.super_class{
+                    for f in &cur.static_fields{
+                        let f = f.read().unwrap();
+                        if f.0.name == target.name_and_type.name{
+                            let j_value = f.1.clone();
+                            stack.push_front(j_value);
+                            if let JValue::Long(_) = j_value{
+                                stack.insert(1, JValue::Second);
+                            }else if let JValue::Double(_) = j_value{
+                                stack.insert(1, JValue::Second);
+                            }
+                            was_static = true;
                         }
-                        was_static = true;
                     }
+                    cur = sc;
                 }
                 if !was_static{
                     if let Some(JValue::Reference(r)) = stack.remove(0){
@@ -1149,6 +1154,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                             return MethodResult::Throw(update_trace(&trace, *idx, method, &owner), "NPE for getfield");
                         }
                     }else{
+                        eprintln!("Expected reference, got {:?}!", stack.get(0));
                         return MethodResult::MachineError("Tried to execute getfield without reference on stack!");
                     }
                 }
@@ -1246,6 +1252,9 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                         i += 1;
                     }
                 }
+                if let Some(JValue::Second) = stack.get(0){
+                    stack.remove(0); // param 0 was a double/long
+                }
                 let receiver = stack.remove(0).unwrap();
                 args.insert(0, receiver.clone());
 
@@ -1288,6 +1297,9 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                             i += 1;
                         }
                     }
+                    if let Some(JValue::Second) = stack.get(0){
+                        stack.remove(0); // param 0 was a double/long
+                    }
                     let result = execute(&*class, &target, args, update_trace(&trace, *idx, method, owner));
                     match result{
                         MethodResult::FinishWithValue(v) => {
@@ -1316,6 +1328,9 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                         args.insert(0, val);
                         i += 1;
                     }
+                }
+                if let Some(JValue::Second) = stack.get(0){
+                    stack.remove(0); // param 0 was a double/long
                 }
                 let receiver = stack.remove(0).unwrap();
                 args.insert(0, receiver.clone());
