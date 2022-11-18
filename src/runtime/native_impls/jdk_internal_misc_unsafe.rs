@@ -16,6 +16,7 @@ pub fn builtin_unsafe_native(name_and_desc: &str) -> fn(Vec<JValue>) -> MethodRe
         "compareAndSetInt(Ljava/lang/Object;JII)Z" => compare_and_set_int_z,
         "compareAndSetLong(Ljava/lang/Object;JJJ)Z" => compare_and_set_long_z,
         "getReferenceVolatile(Ljava/lang/Object;J)Ljava/lang/Object;" => get_reference_volatile_obj,
+        "getIntVolatile(Ljava/lang/Object;J)I" => get_int_volatile_i,
         "compareAndSetReference(Ljava/lang/Object;JLjava/lang/Object;Ljava/lang/Object;)Z" => compare_and_set_reference_z,
         _ => panic!("Unknown jdk.internal.misc.Unsafe native: {}", name_and_desc)
     };
@@ -188,4 +189,33 @@ fn get_reference_volatile_obj(params: Vec<JValue>) -> MethodResult{
         }
     }
     return MethodResult::FinishWithValue(JValue::Reference(None));
+}
+
+fn get_int_volatile_i(params: Vec<JValue>) -> MethodResult{
+    // Unsafe, Object to access, long offset
+    let JValue::Long(idx) = params[2] else { return MethodResult::MachineError("expected long for getIntVolatile") };
+    if let JValue::Reference(Some(r)) = params[1]{
+        match &mut *r.deref().data.write().unwrap(){
+            JObjectData::Fields(fields) => {
+                let mut i = 0;
+                let mut name: Option<String> = None;
+                for field in &r.deref().class.instance_fields{
+                    if i == idx{
+                        name = Some(field.name.clone());
+                        break;
+                    }
+                    i += 1;
+                }
+                if let Some(f) = name{
+                    if let JValue::Int(ix) = fields[&f]{
+                        return MethodResult::FinishWithValue(JValue::Int(ix));
+                    }
+                }
+            }
+            JObjectData::Array(_, values) => {
+                return MethodResult::FinishWithValue(values[idx as usize]);
+            }
+        }
+    }
+    return MethodResult::FinishWithValue(JValue::Int(0));
 }

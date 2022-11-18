@@ -1,5 +1,6 @@
 use std::sync::Arc;
 use std::time::Instant;
+use runtime::heap;
 use runtime::interpreter::MethodResult;
 use runtime::jvalue::{JObject, JObjectData, JValue};
 use StackTrace;
@@ -11,6 +12,9 @@ pub fn builtin_system_native(name_and_desc: &str) -> fn(Vec<JValue>) -> MethodRe
         "registerNatives()V" => register_natives_v,
         "nanoTime()J" => nano_time_j,
         "arraycopy(Ljava/lang/Object;ILjava/lang/Object;II)V" => arraycopy_v,
+        "setIn0(Ljava/io/InputStream;)V" => set_in_v,
+        "setOut(Ljava/io/OutputStream;)V" => set_out_v,
+        "setErr0(Ljava/io/OutputStream;)V" => set_err_v,
         _ => panic!("Unknown java.lang.System native: {}", name_and_desc)
     };
 }
@@ -55,4 +59,37 @@ fn arraycopy_v(args: Vec<JValue>) -> MethodResult{
     }
     println!("src is {:?}, dest is {:?}, src idx is {:?}, dest idx is {:?}, length is {:?}", src_array, src_idx, dest_array, dest_idx, length);
     return MethodResult::Throw(StackTrace::new(), "bad arraycopy args");
+}
+
+fn set_in_v(args: Vec<JValue>) -> MethodResult{
+    let sys = heap::get_or_create_bt_class("Ljava/lang/String;".to_string()).unwrap().ensure_loaded().unwrap();
+    for field in &sys.static_fields{
+        let mut f = field.write().unwrap();
+        if f.0.name == "in"{
+            f.1 = args[0];
+        }
+    }
+    return MethodResult::Finish;
+}
+
+fn set_out_v(args: Vec<JValue>) -> MethodResult{
+    let sys = heap::get_or_create_bt_class("Ljava/lang/String;".to_string()).unwrap().ensure_loaded().unwrap();
+    for field in &sys.static_fields{
+        let mut f = field.write().unwrap();
+        if f.0.name == "out"{
+            f.1 = args[0];
+        }
+    }
+    return MethodResult::Finish;
+}
+
+fn set_err_v(args: Vec<JValue>) -> MethodResult{
+    let sys = heap::get_or_create_bt_class("Ljava/lang/String;".to_string()).unwrap().ensure_loaded().unwrap();
+    for field in &sys.static_fields{
+        let mut f = field.write().unwrap();
+        if f.0.name == "err"{
+            f.1 = args[0];
+        }
+    }
+    return MethodResult::Finish;
 }

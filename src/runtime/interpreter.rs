@@ -1160,6 +1160,9 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                     .expect("Could not load field owner");
                 let mut was_static = false;
                 let value = stack.remove(0).unwrap();
+                if let Some(JValue::Second) = stack.get(0) {
+                    stack.remove(0);
+                }
                 for f in &field_owner.static_fields{
                     let mut f = f.write().unwrap();
                     if f.0.name == target.name_and_type.name{

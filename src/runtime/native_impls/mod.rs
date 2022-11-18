@@ -10,6 +10,9 @@ mod java_lang_string;
 mod java_lang_throwable;
 mod java_lang_number;
 
+mod java_io_file_descriptor;
+mod java_io_file_io_stream;
+
 mod jdk_internal_misc_unsafe;
 mod jdk_internal_misc_cds;
 mod jdk_internal_misc_vm;
@@ -26,6 +29,10 @@ pub fn builtin_native(owner: &String, name_and_desc: &String, trace: &StackTrace
         "java.lang.Throwable" => java_lang_throwable::builtin_throwable_native(name_and_desc)(args),
         "java.lang.Float" => java_lang_number::builtin_float_native(name_and_desc)(args),
         "java.lang.Double" => java_lang_number::builtin_double_native(name_and_desc)(args),
+
+        "java.io.FileDescriptor" => java_io_file_descriptor::builtin_file_descriptor_native(name_and_desc)(args),
+        "java.io.FileInputStream" => java_io_file_io_stream::builtin_file_input_stream_native(name_and_desc)(args),
+        "java.io.FileOutputStream" => java_io_file_io_stream::builtin_file_output_stream_native(name_and_desc)(args),
 
         "jdk.internal.reflect.Reflection" => jdk_internal_reflect_reflection::run_reflection_native(name_and_desc, trace),
 
