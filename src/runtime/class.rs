@@ -47,7 +47,7 @@ impl Class{
         return None;
     }
 
-    pub fn special_method(&self, target: &NameAndType, owner_int_name: String) -> Option<(&Method, &Class)>{
+    pub fn special_method(&self, target: &NameAndType, owner_int_name: &str) -> Option<(&Method, &Class)> {
         if self.descriptor == format!("L{};", owner_int_name){
             for method in &self.methods{
                 if !method.is_static && method.name == target.name && method.descriptor() == target.descriptor{
@@ -56,12 +56,12 @@ impl Class{
             }
         }
         if let Some(c) = &self.super_class{
-            if let Some(ret) = c.special_method(target, owner_int_name.clone()){
+            if let Some(ret) = c.special_method(target, owner_int_name){
                 return Some(ret);
             }
         }
         for interface in &self.interfaces{
-            if let Some(m) = interface.special_method(target, owner_int_name.clone()){
+            if let Some(m) = interface.special_method(target, owner_int_name){
                 return Some(m);
             }
         }

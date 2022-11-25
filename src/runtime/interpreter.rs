@@ -1108,7 +1108,8 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                 let mut was_static = false;
                 let mut cur = &owner;
                 // also get statics from superclasses, because ByteBuffer
-                while let Some(sc) = &cur.super_class{
+                'st: while let Some(sc) = &cur.super_class{
+                    MaybeClass::Class(cur.clone()).ensure_initialized().expect("Failed to initialize superclass for get*");
                     for f in &cur.static_fields{
                         let f = f.read().unwrap();
                         if f.0.name == target.name_and_type.name{
@@ -1120,6 +1121,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
                                 stack.insert(1, JValue::Second);
                             }
                             was_static = true;
+                            break 'st;
                         }
                     }
                     cur = sc;
@@ -1337,7 +1339,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
 
                 if let JValue::Reference(Some(r)) = receiver{
                     let class = &r.deref().class;
-                    let (target, owner) = class.special_method(&target.name_and_type, target.owner_name.clone())
+                    let (target, owner) = class.special_method(&target.name_and_type, target.owner_name.as_str())
                         .expect(format!("Tried to execute invokespecial for method with {:?} for {} that doesn't exist on receiver", &target.name_and_type, &target.owner_name.clone()).as_str());
                     let result = execute(owner, &target, args, update_trace(&trace, *idx, method, owner));
                     // TODO: exception handling
