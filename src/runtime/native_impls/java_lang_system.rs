@@ -13,8 +13,8 @@ pub fn builtin_system_native(name_and_desc: &str) -> fn(Vec<JValue>) -> MethodRe
         "nanoTime()J" => nano_time_j,
         "arraycopy(Ljava/lang/Object;ILjava/lang/Object;II)V" => arraycopy_v,
         "setIn0(Ljava/io/InputStream;)V" => set_in_v,
-        "setOut(Ljava/io/OutputStream;)V" => set_out_v,
-        "setErr0(Ljava/io/OutputStream;)V" => set_err_v,
+        "setOut0(Ljava/io/PrintStream;)V" => set_out_v,
+        "setErr0(Ljava/io/PrintStream;)V" => set_err_v,
         _ => panic!("Unknown java.lang.System native: {}", name_and_desc)
     };
 }
