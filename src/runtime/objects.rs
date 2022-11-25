@@ -86,7 +86,7 @@ fn unwrap_bytes(ints: &Vec<JValue>) -> Vec<u8>{
     return ret;
 }
 
-fn as_utf16(string: &String) -> Vec<u8>{
+fn as_utf16(string: &str) -> Vec<u8>{
     let mut ret = Vec::with_capacity(string.len() * 2);
     for i in string.encode_utf16(){
         for b in i.to_be_bytes(){
@@ -106,16 +106,17 @@ fn array_of(objects: Vec<JValue>) -> JValue{
     return heap::add_ref(JObject::new(class, JObjectData::Array(objects.len(), objects)));
 }
 
-pub fn string_class() -> ClassRef{
-    return heap::get_or_create_bt_class("Ljava/lang/String;".to_string())
-        .expect("Could not parse java.lang.String!")
+pub fn force_init_class(desc: &str) -> ClassRef{
+    return heap::get_or_create_bt_class(desc.to_string())
+        .expect(format!("Could not parse {}!", desc).as_str())
         .ensure_initialized()
-        .expect("Could not link java.lang.String!");
+        .expect(format!("Could not link {}!", desc).as_str());
+}
+
+pub fn string_class() -> ClassRef{
+    return force_init_class("Ljava/lang/String;");
 }
 
 pub fn class_class() -> ClassRef{
-    return heap::get_or_create_bt_class("Ljava/lang/Class;".to_string())
-        .expect("Could not parse java.lang.Class!")
-        .ensure_initialized()
-        .expect("Could not link java.lang.Class!");
+    return force_init_class("Ljava/lang/Class;");
 }

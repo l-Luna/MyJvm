@@ -4,14 +4,15 @@ use StackTrace;
 
 pub fn builtin_object_native(name_and_desc: &str) -> fn(Vec<JValue>) -> MethodResult{
     return match name_and_desc{
-        "registerNatives()V" => register_natives_v,
+        "registerNatives()V" |
+        "notifyAll()V" => no_op_v,
         "hashCode()I" => hash_code_i,
         "getClass()Ljava/lang/Class;" => get_class,
         _ => panic!("Unknown java.lang.Object native: {}", name_and_desc)
     };
 }
 
-fn register_natives_v(_: Vec<JValue>) -> MethodResult{
+fn no_op_v(_: Vec<JValue>) -> MethodResult{
     // no-op
     return MethodResult::Finish;
 }
