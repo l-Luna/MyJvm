@@ -17,6 +17,7 @@ mod jdk_internal_misc_unsafe;
 mod jdk_internal_misc_cds;
 mod jdk_internal_misc_vm;
 mod jdk_internal_misc_sma;
+mod jdk_internal_misc_signal;
 mod jdk_internal_reflect_reflection;
 mod jdk_internal_util_system_props;
 
@@ -41,6 +42,7 @@ pub fn builtin_native(owner: &String, name_and_desc: &String, trace: &StackTrace
         "jdk.internal.misc.CDS" => jdk_internal_misc_cds::builtin_cds_native(name_and_desc)(args),
         "jdk.internal.misc.VM" => jdk_internal_misc_vm::builtin_vm_native(name_and_desc)(args),
         "jdk.internal.misc.ScopedMemoryAccess" => jdk_internal_misc_sma::builtin_sma_native(name_and_desc)(args),
+        "jdk.internal.misc.Signal" => jdk_internal_misc_signal::builtin_signal_native(name_and_desc)(args),
 
         "jdk.internal.util.SystemProps$Raw" => jdk_internal_util_system_props::builtin_raw_system_props_native(name_and_desc)(args),
 

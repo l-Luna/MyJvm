@@ -4,6 +4,7 @@
 #![feature(let_chains)]
 
 extern crate rand;
+extern crate libc;
 
 use crate::runtime::interpreter::StackTrace;
 

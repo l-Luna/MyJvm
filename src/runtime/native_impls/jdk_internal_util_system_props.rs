@@ -61,7 +61,9 @@ fn vm_properties(_: Vec<JValue>) -> MethodResult{
     let mut values: Vec<JValue> = vec!["java.home".to_string(),
                                        classes::find_java_home().unwrap(),
                                        "java.class.version".to_string(),
-                                       "99.65535".to_string()]
+                                       "99.65535".to_string(),
+                                       "sun.io.allowCriticalErrorMessageBox".to_string(),
+                                       "true".to_string()]
         .iter()
         .map(objects::synthesize_string)
         .map(heap::add_ref)
