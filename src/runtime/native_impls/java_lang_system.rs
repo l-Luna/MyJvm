@@ -62,7 +62,7 @@ fn arraycopy_v(args: Vec<JValue>) -> MethodResult{
 }
 
 fn set_in_v(args: Vec<JValue>) -> MethodResult{
-    let sys = heap::get_or_create_bt_class("Ljava/lang/String;".to_string()).unwrap().ensure_loaded().unwrap();
+    let sys = heap::get_or_create_bt_class("Ljava/lang/System;".to_string()).unwrap().ensure_loaded().unwrap();
     for field in &sys.static_fields{
         let mut f = field.write().unwrap();
         if f.0.name == "in"{
@@ -73,7 +73,7 @@ fn set_in_v(args: Vec<JValue>) -> MethodResult{
 }
 
 fn set_out_v(args: Vec<JValue>) -> MethodResult{
-    let sys = heap::get_or_create_bt_class("Ljava/lang/String;".to_string()).unwrap().ensure_loaded().unwrap();
+    let sys = heap::get_or_create_bt_class("Ljava/lang/System;".to_string()).unwrap().ensure_loaded().unwrap();
     for field in &sys.static_fields{
         let mut f = field.write().unwrap();
         if f.0.name == "out"{
@@ -84,7 +84,7 @@ fn set_out_v(args: Vec<JValue>) -> MethodResult{
 }
 
 fn set_err_v(args: Vec<JValue>) -> MethodResult{
-    let sys = heap::get_or_create_bt_class("Ljava/lang/String;".to_string()).unwrap().ensure_loaded().unwrap();
+    let sys = heap::get_or_create_bt_class("Ljava/lang/System;".to_string()).unwrap().ensure_loaded().unwrap();
     for field in &sys.static_fields{
         let mut f = field.write().unwrap();
         if f.0.name == "err"{
