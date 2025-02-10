@@ -1,5 +1,5 @@
 use std::{collections::HashMap, sync::RwLock};
-use rand::Rng;
+use rand::random;
 use crate::runtime::heap;
 
 use super::{heap::JRef, class::ClassRef};
@@ -27,7 +27,7 @@ impl JObject{
     pub fn new(class: ClassRef, data: JObjectData) -> JObject{
         return JObject{
             class,
-            identity_hash: rand::thread_rng().gen(),
+            identity_hash: random(),
             data: RwLock::new(data)
         };
     }
