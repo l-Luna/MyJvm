@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
-use runtime::{jvalue::{JObject, JObjectData, JValue}, class::ClassRef, classes, heap};
+use crate::runtime::{jvalue::{JObject, JObjectData, JValue}, class::ClassRef, classes, heap};
 
 use crate::constants;
 

@@ -1,6 +1,6 @@
-use runtime::native_impls::java_lang_class;
-use runtime::{heap, objects};
-use runtime::jvalue::JObjectData;
+use crate::runtime::native_impls::java_lang_class;
+use crate::runtime::{heap, objects};
+use crate::runtime::jvalue::JObjectData;
 use crate::runtime::{jvalue::JValue, interpreter::MethodResult};
 
 pub fn builtin_unsafe_native(name_and_desc: &str) -> fn(Vec<JValue>) -> MethodResult{

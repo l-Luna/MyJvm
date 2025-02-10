@@ -1,5 +1,4 @@
-use StackTrace;
-use crate::runtime::{jvalue::JValue, interpreter::MethodResult};
+use crate::runtime::{jvalue::JValue, interpreter::{MethodResult, StackTrace}};
 
 // Float, Double
 

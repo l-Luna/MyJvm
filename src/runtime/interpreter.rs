@@ -1,8 +1,8 @@
 use std::collections::VecDeque;
-use parser::classfile_structs::{Code, Instruction};
-use runtime::jvalue::JValue;
-use runtime::{native_impls, objects};
-use runtime::class::Class;
+use crate::parser::classfile_structs::{Code, Instruction};
+use crate::runtime::jvalue::JValue;
+use crate::runtime::{native_impls, objects};
+use crate::runtime::class::Class;
 
 use crate::parser::classfile_structs::{ConstantEntry, MemberRef};
 
@@ -337,7 +337,7 @@ pub fn interpret(owner: &Class, method: &Method, args: Vec<JValue>, code: &Code,
             },
 
             // TODO: validate array type
-            Instruction::BALoad | Instruction::AALoad => {
+            Instruction::BALoad | Instruction::AALoad | Instruction::CALoad => {
                 if let Some(JValue::Reference(array_ref)) = stack.get(1)
                 && let Some(JValue::Int(array_idx)) = stack.get(0){
                     let array_ref: &Option<JRef> = array_ref; // fix IDE highlighting

@@ -1,9 +1,8 @@
 use std::sync::Arc;
 use std::time::Instant;
-use runtime::heap;
-use runtime::interpreter::MethodResult;
-use runtime::jvalue::{JObject, JObjectData, JValue};
-use StackTrace;
+use crate::runtime::heap;
+use crate::runtime::interpreter::{MethodResult, StackTrace};
+use crate::runtime::jvalue::{JObject, JObjectData, JValue};
 
 static mut START: Option<Instant> = None;
 

@@ -1,6 +1,5 @@
-use runtime::{heap, objects};
-use crate::runtime::{jvalue::JValue, interpreter::MethodResult};
-use StackTrace;
+use crate::runtime::{heap, objects};
+use crate::runtime::{jvalue::JValue, interpreter::{MethodResult, StackTrace}};
 
 pub fn builtin_object_native(name_and_desc: &str) -> fn(Vec<JValue>) -> MethodResult{
     return match name_and_desc{

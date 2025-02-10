@@ -1,5 +1,4 @@
-use runtime::heap;
-use crate::runtime::{jvalue::JValue, interpreter::MethodResult};
+use crate::runtime::{heap, jvalue::JValue, interpreter::MethodResult};
 
 pub fn builtin_runtime_native(name_and_desc: &str) -> fn(Vec<JValue>) -> MethodResult{
     return match name_and_desc{

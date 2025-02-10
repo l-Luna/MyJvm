@@ -1,6 +1,6 @@
 use std::os::windows::io::AsRawHandle;
-use runtime::interpreter::MethodResult;
-use runtime::jvalue::JValue;
+use crate::runtime::interpreter::MethodResult;
+use crate::runtime::jvalue::JValue;
 
 pub fn builtin_file_descriptor_native(name_and_desc: &str) -> fn(Vec<JValue>) -> MethodResult{
     return match name_and_desc{

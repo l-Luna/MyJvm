@@ -1,7 +1,6 @@
 use std::sync::RwLock;
-use std::thread;
-use parser::classfile_structs::NameAndType;
-use runtime::{heap, interpreter, objects};
+use crate::parser::classfile_structs::NameAndType;
+use crate::runtime::{heap, interpreter, objects};
 use crate::runtime::{jvalue::JValue, interpreter::MethodResult};
 
 // static DEFAULT_THREAD: OnceLock<JValue> = OnceLock::new();

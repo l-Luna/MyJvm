@@ -1,6 +1,6 @@
-use runtime::interpreter::MethodResult;
-use runtime::jvalue::JValue;
-use StackTrace;
+use crate::runtime::interpreter::MethodResult;
+use crate::runtime::jvalue::JValue;
+use crate::StackTrace;
 
 mod java_lang_object;
 mod java_lang_system;

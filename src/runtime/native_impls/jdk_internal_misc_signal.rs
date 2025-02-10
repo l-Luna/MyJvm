@@ -1,6 +1,6 @@
-use runtime::interpreter::MethodResult;
-use runtime::jvalue::JValue;
-use runtime::objects;
+use crate::runtime::interpreter::MethodResult;
+use crate::runtime::jvalue::JValue;
+use crate::runtime::objects;
 
 use libc;
 

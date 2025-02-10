@@ -33,21 +33,19 @@ impl ClassLoader for UserClassLoader{
 
 pub struct BootstrapLoader{}
 
-static mut JAVA_BASE_CLASSES: Option<RwLock<HashMap<String, Vec<u8>>>> = None;
-static mut ARRAY_CLASSES: Option<RwLock<HashMap<String, Vec<u8>>>> = None;
+static JAVA_BASE_CLASSES: RwLock<Option<HashMap<String, Vec<u8>>>> = RwLock::new(None);
+static ARRAY_CLASSES: RwLock<Option<HashMap<String, Vec<u8>>>> = RwLock::new(None);
 
 impl ClassLoader for BootstrapLoader{
     fn name(&self) -> String{
         return constants::BOOTSTRAP_LOADER_NAME.to_owned();
     }
     fn load(&self, classname: &str) -> Vec<u8> {
-        unsafe{
-            // try platform classes
-            let rw = JAVA_BASE_CLASSES.as_ref().unwrap();
-            let class_data = &mut *rw.write().unwrap();
-            if class_data.contains_key(classname){
-                return class_data.get(classname).unwrap().clone();
-            }
+        // try platform classes;
+        let rw = &mut *JAVA_BASE_CLASSES.write().unwrap();
+        let class_data = rw.as_mut().unwrap();
+        if class_data.contains_key(classname) {
+            return class_data.get(classname).unwrap().clone();
         }
         // try relative path
         // TODO: better error reporting
@@ -92,11 +90,8 @@ pub fn setup_java_base(){
             data.insert(name[8..name.len() - 6].to_owned(), file_data);
         }
     }
-    
-    unsafe{
-        JAVA_BASE_CLASSES = Some(RwLock::new(data));
-        ARRAY_CLASSES = Some(RwLock::new(HashMap::new()));
-    }
+
+    *JAVA_BASE_CLASSES.write().unwrap() = Some(data);
 }
 
 // Default impls

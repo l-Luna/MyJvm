@@ -1,4 +1,4 @@
-use parser::classfile_structs::NameAndType;
+use crate::parser::classfile_structs::NameAndType;
 
 // Shared flags
 pub const ACC_PUBLIC: u16          = 0x0001;

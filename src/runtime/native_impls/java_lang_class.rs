@@ -1,5 +1,5 @@
-use ::{constants, StackTrace};
-use runtime::{jvalue::{JValue, JObjectData}, interpreter::MethodResult, objects, heap};
+use crate::constants;
+use crate::runtime::{jvalue::{JValue, JObjectData}, interpreter::{MethodResult, StackTrace}, objects, heap};
 
 pub fn builtin_class_native(name_and_desc: &str) -> fn(Vec<JValue>) -> MethodResult{
     return match name_and_desc{

@@ -1,6 +1,5 @@
-use crate::runtime::interpreter::MethodResult;
-use runtime::{heap, objects};
-use StackTrace;
+use crate::runtime::interpreter::{MethodResult, StackTrace};
+use crate::runtime::{heap, objects};
 
 pub fn run_reflection_native(name_and_desc: &str, trace: &StackTrace) -> MethodResult{
     return match name_and_desc{

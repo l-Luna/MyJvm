@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::RwLock};
 use rand::Rng;
-use runtime::heap;
+use crate::runtime::heap;
 
 use super::{heap::JRef, class::ClassRef};
 

@@ -1,11 +1,9 @@
 use std::{sync::{RwLock, Arc}, collections::HashMap, hash::Hash};
 use std::fmt::Debug;
-use runtime::interpreter;
-use runtime::jvalue::JValue;
 
 use crate::{constants, parser::{classfile_structs::Classfile, classfile_parser}};
-
-use super::{jvalue::JObject, class::{ClassRef, Class, MaybeClass, self}, classes::{self, ClassLoader}, interpreter::{StackTrace, MethodResult}};
+use crate::runtime::jvalue::JValue;
+use super::{jvalue::JObject, class::{ClassRef, Class, MaybeClass, self}, classes::{self, ClassLoader}, interpreter::{StackTrace, MethodResult}, interpreter};
 
 // TODO: use weak references everywhere (esp JRef and ClassRef)
 // and only keep objects and classes alive via the heaps
@@ -32,15 +30,12 @@ impl JRef {
 static HEAP_ACTIVE: RwLock<Vec<Arc<JObject>>> = RwLock::new(Vec::new());
 static HEAP_INACTIVE: RwLock<Vec<Arc<JObject>>> = RwLock::new(Vec::new());
 // Map of classloader name -> associated classes
-static mut CREATED_CLASSES: Option<RwLock<HashMap<String, Vec<Classfile>>>> = None;
-static mut LOADED_CLASSES: Option<RwLock<HashMap<String, Vec<ClassRef>>>> = None;
+static CREATED_CLASSES: RwLock<Option<HashMap<String, Vec<Classfile>>>> = RwLock::new(None);
+static LOADED_CLASSES: RwLock<Option<HashMap<String, Vec<ClassRef>>>> = RwLock::new(None);
 
 pub fn setup(){
-    unsafe{
-        CREATED_CLASSES = Some(RwLock::new(HashMap::new()));
-        LOADED_CLASSES = Some(RwLock::new(HashMap::new()));
-    }
-
+    *CREATED_CLASSES.write().unwrap() = Some(HashMap::new());
+    *LOADED_CLASSES.write().unwrap() = Some(HashMap::new());
     for primitive in classes::create_primitive_classes(){
         add_bt_class(primitive, true);
     }
@@ -81,7 +76,7 @@ pub fn add_class(mut class: Class, loader_name: String, initialize: bool){
         // while we only actually initialize it later, its easier to set now and should not have an observable difference
         class.initialized = RwLock::new(true);
     }
-    unsafe{ add_to_map_list(loader_name.clone(), Arc::new(class), &LOADED_CLASSES); }
+    add_to_map_list(loader_name.clone(), Arc::new(class), &LOADED_CLASSES);
     
     // run client init
     // TODO: don't repeat this (get().unwrap().ensure().unwrap()) as much
@@ -111,17 +106,17 @@ pub fn add_class(mut class: Class, loader_name: String, initialize: bool){
 
 /// Returns a "snapshot" of the classes loaded by the given loader.
 pub fn classes_by_loader(loader_name: String) -> Vec<ClassRef>{
-    unsafe{ return unwrap_map_list(loader_name, &LOADED_CLASSES); }
+    return unwrap_map_list(loader_name, &LOADED_CLASSES);
 }
 
 /// Adds a created classfile under the given classloader to be used in further loading or linking.
 pub fn add_classfile(class: Classfile, loader_name: String){
-    unsafe{ add_to_map_list(loader_name, class, &CREATED_CLASSES); }
+    add_to_map_list(loader_name, class, &CREATED_CLASSES);
 }
 
 /// Returns a "snapshot" of the classesfiles created by the given loader.
 pub fn classfiles_by_loader(loader_name: String) -> Vec<Classfile>{
-    unsafe{ return unwrap_map_list(loader_name, &CREATED_CLASSES); }
+    return unwrap_map_list(loader_name, &CREATED_CLASSES);
 }
 
 /// Returns the class with the given descriptor loaded by the given classloader.
@@ -255,9 +250,9 @@ fn desc_to_name(desc: String) -> Result<String, String>{
     }
 }
 
-fn add_to_map_list<K, V>(key: K, value: V, map_list: &Option<RwLock<HashMap<K, Vec<V>>>>) where K: Eq + Clone + Hash, V: PartialEq + Debug{
-    let rw = map_list.as_ref().unwrap();
-    let loaded_classes = &mut *rw.write().unwrap();
+fn add_to_map_list<K, V>(key: K, value: V, map_list: &RwLock<Option<HashMap<K, Vec<V>>>>) where K: Eq + Clone + Hash, V: PartialEq + Debug{
+    let lc_opt = &mut *map_list.write().unwrap();
+    let loaded_classes = lc_opt.as_mut().unwrap();
     let loader_classes = if loaded_classes.contains_key(&key){
         loaded_classes.get_mut(&key).unwrap()
     }else{
@@ -270,9 +265,9 @@ fn add_to_map_list<K, V>(key: K, value: V, map_list: &Option<RwLock<HashMap<K, V
     loader_classes.push(value);
 }
 
-pub fn unwrap_map_list<K, V>(key: K, map_list: &Option<RwLock<HashMap<K, Vec<V>>>>) -> Vec<V> where K: Eq + Clone + Hash, V: Clone{
-    let rw = map_list.as_ref().unwrap();
-    let loaded_classes = rw.read().unwrap();
+pub fn unwrap_map_list<K, V>(key: K, map_list: &RwLock<Option<HashMap<K, Vec<V>>>>) -> Vec<V> where K: Eq + Clone + Hash, V: Clone{
+    let rw = map_list.read().unwrap();
+    let loaded_classes = rw.as_ref().unwrap();
     let classes_by_loader = loaded_classes.get(&key);
     match classes_by_loader{
         Some(classes) => classes.clone(),

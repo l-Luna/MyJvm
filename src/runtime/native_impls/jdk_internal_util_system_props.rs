@@ -1,4 +1,4 @@
-use runtime::{classes, heap, interpreter::MethodResult, jvalue::JValue, objects};
+use crate::runtime::{classes, heap, interpreter::MethodResult, jvalue::JValue, objects};
 
 pub fn builtin_raw_system_props_native(name_and_desc: &str) -> fn(Vec<JValue>) -> MethodResult{
     return match name_and_desc{
