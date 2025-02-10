@@ -70,7 +70,6 @@ impl StackTraceEntry {
 // Method execution
 
 pub fn execute(owner: &Class, method: &Method, args: Vec<JValue>, trace: StackTrace) -> MethodResult{
-    println!("Executing {} in {}", &method.name, &owner.name);
     match &method.code{
         class::MethodImpl::Bytecode(bytecode) => interpret(owner, method, args, bytecode, trace),
         class::MethodImpl::Native => {
